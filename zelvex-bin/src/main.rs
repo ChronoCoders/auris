@@ -1,7 +1,16 @@
 use std::{net::SocketAddr, path::Path};
 
+use alloy::primitives::Address;
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
+
+alloy::sol! {
+    #[sol(rpc)]
+    interface UniswapV2Pair {
+        function token0() external view returns (address);
+        function token1() external view returns (address);
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -15,8 +24,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let signer = zelvex_exec::load_signer_from_file(&config.keys.signer_key_path)?;
     let wallet_address = signer.address();
 
-    let pool_metadata = zelvex_core::sync_subscriber::default_test_pool_metadata();
-    let pools: Vec<_> = pool_metadata.iter().map(|p| p.pool_address).collect();
+    let pools = resolve_pool_addresses(&config)?;
+    let pool_metadata = fetch_pool_metadata(&config.node.ws_url, pools.clone()).await?;
     zelvex_db::set_bot_state(&pool, "pools_monitored", &pools.len().to_string()).await?;
     zelvex_db::set_bot_state(
         &pool,
@@ -34,12 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    let mut unique_pools = Vec::new();
-    for p in &pools {
-        if !unique_pools.contains(p) {
-            unique_pools.push(*p);
-        }
-    }
+    let unique_pools = unique_addresses(&pools);
     let mut pool_pairs = Vec::new();
     for i in 0..unique_pools.len() {
         for j in (i + 1)..unique_pools.len() {
@@ -141,4 +145,54 @@ fn parse_config_path() -> Result<std::path::PathBuf, Box<dyn std::error::Error>>
 fn sqlite_url(path: &Path) -> String {
     let s = path.to_string_lossy().replace('\\', "/");
     format!("sqlite://{s}")
+}
+
+fn resolve_pool_addresses(
+    config: &zelvex_config::Config,
+) -> Result<Vec<Address>, Box<dyn std::error::Error>> {
+    if !config.pools.seed_pairs.is_empty() {
+        let mut out = Vec::with_capacity(config.pools.seed_pairs.len());
+        for s in &config.pools.seed_pairs {
+            out.push(s.parse::<Address>()?);
+        }
+        return Ok(out);
+    }
+
+    Ok(zelvex_core::sync_subscriber::default_test_pools().to_vec())
+}
+
+async fn fetch_pool_metadata(
+    ws_url: &str,
+    pool_addresses: Vec<Address>,
+) -> Result<Vec<zelvex_types::Pool>, Box<dyn std::error::Error>> {
+    let ws = alloy::transports::ws::WsConnect::new(ws_url);
+    let provider = alloy::providers::ProviderBuilder::new().on_ws(ws).await?;
+
+    let mut out = Vec::with_capacity(pool_addresses.len());
+    for pool_address in pool_addresses {
+        let pair = UniswapV2Pair::new(pool_address, &provider);
+        let UniswapV2Pair::token0Return { _0: token0 } = pair.token0().call().await?;
+        let UniswapV2Pair::token1Return { _0: token1 } = pair.token1().call().await?;
+
+        out.push(zelvex_types::Pool {
+            pool_address,
+            token0,
+            token1,
+            reserve0: alloy::primitives::U256::ZERO,
+            reserve1: alloy::primitives::U256::ZERO,
+            block_updated: 0,
+        });
+    }
+
+    Ok(out)
+}
+
+fn unique_addresses(addresses: &[Address]) -> Vec<Address> {
+    let mut out: Vec<Address> = Vec::new();
+    for a in addresses {
+        if !out.contains(a) {
+            out.push(*a);
+        }
+    }
+    out
 }

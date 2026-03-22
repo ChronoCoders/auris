@@ -5186,6 +5186,7 @@ dependencies = [
  "zelvex-db",
  "zelvex-exec",
  "zelvex-gas",
+ "zelvex-types",
 ]
 
 [[package]]

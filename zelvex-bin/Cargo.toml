@@ -14,3 +14,4 @@ zelvex-core = { path = "../zelvex-core" }
 zelvex-db = { path = "../zelvex-db" }
 zelvex-exec = { path = "../zelvex-exec" }
 zelvex-gas = { path = "../zelvex-gas" }
+zelvex-types = { path = "../zelvex-types" }

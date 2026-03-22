@@ -19,6 +19,7 @@ pub struct Config {
     pub node: NodeConfig,
     pub flashbots: FlashbotsConfig,
     pub bot: BotConfig,
+    pub pools: PoolsConfig,
     pub server: ServerConfig,
     pub database: DatabaseConfig,
     pub auth: AuthConfig,
@@ -40,6 +41,18 @@ pub struct BotConfig {
     pub min_profit_usd: f64,
     pub max_gas_gwei: u64,
     pub paper_trade: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PoolsConfig {
+    #[serde(default)]
+    pub seed_pairs: Vec<String>,
+    #[serde(default = "default_min_liquidity_usd")]
+    pub min_liquidity_usd: f64,
+}
+
+fn default_min_liquidity_usd() -> f64 {
+    500_000.0
 }
 
 #[derive(Debug, Deserialize)]
@@ -116,6 +129,21 @@ fn apply_env_overrides(config: &mut Config) -> Result<(), ConfigError> {
     env_override(&mut config.bot.paper_trade, "ZELVEX_BOT_PAPER_TRADE", |v| {
         v.parse::<bool>().map_err(|_| ())
     })?;
+    env_override(
+        &mut config.pools.seed_pairs,
+        "ZELVEX_POOLS_SEED_PAIRS",
+        |v| {
+            Ok(v.split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect())
+        },
+    )?;
+    env_override(
+        &mut config.pools.min_liquidity_usd,
+        "ZELVEX_POOLS_MIN_LIQUIDITY_USD",
+        |v| v.parse::<f64>().map_err(|_| ()),
+    )?;
     env_override(
         &mut config.server.bind_addr,
         "ZELVEX_SERVER_BIND_ADDR",
