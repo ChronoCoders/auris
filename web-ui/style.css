@@ -1,0 +1,38 @@
+body {
+  background: #0a0e1a;
+  color: #c5cdd8;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
+  margin: 0;
+  padding: 32px;
+}
+
+label {
+  display: block;
+  margin: 12px 0;
+}
+
+input {
+  width: 280px;
+  padding: 8px;
+  margin-top: 6px;
+  background: #0f1628;
+  color: #c5cdd8;
+  border: 1px solid #2b3550;
+}
+
+button {
+  padding: 10px 14px;
+  background: #4a9eff;
+  border: 0;
+  color: #0a0e1a;
+  cursor: pointer;
+}
+
+.hidden {
+  display: none;
+}
+
+.error {
+  margin-top: 12px;
+  color: #ff6b6b;
+}

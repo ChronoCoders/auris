@@ -1,0 +1,11 @@
+[package]
+name = "zelvex-sim"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+zelvex-types = { path = "../zelvex-types" }
+
+[dev-dependencies]
+alloy = { workspace = true }
+tokio = { workspace = true }

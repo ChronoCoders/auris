@@ -1,0 +1,21 @@
+[package]
+name = "zelvex-api"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+alloy = { workspace = true }
+argon2 = { workspace = true }
+axum = { workspace = true }
+chrono = { workspace = true }
+jsonwebtoken = { workspace = true }
+rand = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tower = { workspace = true }
+zelvex-config = { path = "../zelvex-config" }
+zelvex-db = { path = "../zelvex-db" }
+zelvex-types = { path = "../zelvex-types" }

@@ -1,0 +1,11 @@
+[package]
+name = "zelvex-config"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+alloy = { workspace = true }
+dotenvy = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+toml = "0.8"

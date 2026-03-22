@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ZELVEX</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <main id="app">
+      <section id="auth">
+        <h1>ZELVEX</h1>
+        <form id="login-form">
+          <label>
+            Username
+            <input id="login-username" autocomplete="username" />
+          </label>
+          <label>
+            Password
+            <input id="login-password" type="password" autocomplete="current-password" />
+          </label>
+          <button type="submit">Login</button>
+        </form>
+        <div id="auth-error" class="error"></div>
+      </section>
+      <section id="dashboard" class="hidden">
+        <h2>Dashboard</h2>
+        <div id="status"></div>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

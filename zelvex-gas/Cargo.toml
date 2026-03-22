@@ -1,0 +1,8 @@
+[package]
+name = "zelvex-gas"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+tokio = { workspace = true }
+zelvex-types = { path = "../zelvex-types" }

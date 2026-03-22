@@ -1,0 +1,12 @@
+[package]
+name = "zelvex-core"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+alloy = { workspace = true }
+futures-util = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+zelvex-db = { path = "../zelvex-db" }
+zelvex-types = { path = "../zelvex-types" }
