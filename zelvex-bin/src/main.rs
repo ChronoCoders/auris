@@ -15,7 +15,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let signer = zelvex_exec::load_signer_from_file(&config.keys.signer_key_path)?;
     let wallet_address = signer.address();
 
-    let pools = zelvex_core::sync_subscriber::default_test_pools().to_vec();
+    let pool_metadata = zelvex_core::sync_subscriber::default_test_pool_metadata();
+    let pools: Vec<_> = pool_metadata.iter().map(|p| p.pool_address).collect();
     zelvex_db::set_bot_state(&pool, "pools_monitored", &pools.len().to_string()).await?;
     zelvex_db::set_bot_state(
         &pool,
@@ -26,13 +27,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     zelvex_db::set_bot_state(&pool, "max_gas_gwei", &config.bot.max_gas_gwei.to_string()).await?;
 
     let pool_store = std::sync::Arc::new(Mutex::new(zelvex_core::sync::PoolStore::new()));
+    {
+        let mut store = pool_store.lock().await;
+        for p in pool_metadata {
+            store.upsert_pool(p);
+        }
+    }
+
+    let mut unique_pools = Vec::new();
+    for p in &pools {
+        if !unique_pools.contains(p) {
+            unique_pools.push(*p);
+        }
+    }
+    let mut pool_pairs = Vec::new();
+    for i in 0..unique_pools.len() {
+        for j in (i + 1)..unique_pools.len() {
+            pool_pairs.push((unique_pools[i], unique_pools[j]));
+        }
+    }
+
+    let (updates_tx, updates_rx) = tokio::sync::mpsc::channel::<()>(1024);
+    let gas_oracle = std::sync::Arc::new(Mutex::new(zelvex_gas::GasOracle::new()));
 
     {
         let ws_url = config.node.ws_url.clone();
         let pool = pool.clone();
+        let gas_oracle = gas_oracle.clone();
         tokio::spawn(async move {
-            let mut oracle = zelvex_gas::GasOracle::new();
-            if let Err(e) = zelvex_gas::run_gas_sampler(&ws_url, pool, &mut oracle).await {
+            if let Err(e) = zelvex_gas::run_gas_sampler(&ws_url, pool, gas_oracle).await {
                 eprintln!("gas sampler fatal: {e}");
             }
         });
@@ -41,12 +64,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         let ws_url = config.node.ws_url.clone();
         let pool_store = pool_store.clone();
+        let updates_tx = updates_tx.clone();
+        let pools = pools.clone();
         tokio::spawn(async move {
-            if let Err(e) =
-                zelvex_core::sync_subscriber::run_sync_subscription(&ws_url, pools, pool_store)
-                    .await
+            if let Err(e) = zelvex_core::sync_subscriber::run_sync_subscription(
+                &ws_url, pools, pool_store, updates_tx,
+            )
+            .await
             {
                 eprintln!("sync subscription fatal: {e}");
+            }
+        });
+    }
+
+    {
+        let ws_url = config.node.ws_url.clone();
+        let pool_store = pool_store.clone();
+        let db = pool.clone();
+        let gas_oracle = gas_oracle.clone();
+        let min_profit_usd = config.bot.min_profit_usd;
+        tokio::spawn(async move {
+            if let Err(e) = zelvex_core::scanner::run_scanner(
+                ws_url,
+                updates_rx,
+                pool_pairs,
+                pool_store,
+                db,
+                gas_oracle,
+                min_profit_usd,
+            )
+            .await
+            {
+                eprintln!("scanner fatal: {e}");
             }
         });
     }

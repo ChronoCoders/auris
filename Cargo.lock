@@ -5206,10 +5206,13 @@ dependencies = [
  "alloy",
  "futures-util",
  "serde_json",
+ "sqlx",
  "thiserror 2.0.18",
  "tokio",
  "tokio-tungstenite 0.23.1",
  "zelvex-db",
+ "zelvex-gas",
+ "zelvex-sim",
  "zelvex-types",
 ]
 

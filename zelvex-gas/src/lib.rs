@@ -4,6 +4,7 @@ use alloy::providers::Provider;
 use futures_util::StreamExt;
 use sqlx::SqlitePool;
 use thiserror::Error;
+use tokio::sync::Mutex;
 use zelvex_types::GasEstimate;
 
 #[derive(Debug, Clone)]
@@ -39,11 +40,11 @@ impl GasOracle {
         self.priority_fee_history_wei.push_back(priority_fee_wei);
     }
 
-    pub fn get_current_base_fee(&self) -> u128 {
-        self.last_base_fee_wei
+    pub fn get_current_base_fee(&self) -> u64 {
+        u128_to_u64_saturating(self.last_base_fee_wei)
     }
 
-    pub fn get_recommended_priority_fee(&self) -> u128 {
+    pub fn get_recommended_priority_fee(&self) -> u64 {
         let mut samples: Vec<u128> = self
             .priority_fee_history_wei
             .iter()
@@ -52,15 +53,15 @@ impl GasOracle {
             .copied()
             .collect();
         if samples.is_empty() {
-            return self.last_priority_fee_wei;
+            return u128_to_u64_saturating(self.last_priority_fee_wei);
         }
         samples.sort_unstable();
         let idx = ((samples.len() - 1) as f64 * 0.90).round() as usize;
-        samples[idx]
+        u128_to_u64_saturating(samples[idx])
     }
 
     pub fn get_current_gas_estimate(&self) -> GasEstimate {
-        let priority_wei = self.get_recommended_priority_fee();
+        let priority_wei = self.get_recommended_priority_fee() as u128;
         let total_wei = self.last_base_fee_wei.saturating_add(priority_wei);
 
         GasEstimate {
@@ -71,11 +72,19 @@ impl GasOracle {
     }
 
     pub fn estimate_gas_cost_usd(&self, gas_units: u64, eth_price_usd: f64) -> f64 {
-        let priority_wei = self.get_recommended_priority_fee();
+        let priority_wei = self.get_recommended_priority_fee() as u128;
         let total_wei = self.last_base_fee_wei.saturating_add(priority_wei) as f64;
 
         let eth_cost = (gas_units as f64 * total_wei) / 1_000_000_000_000_000_000.0;
         eth_cost * eth_price_usd
+    }
+}
+
+fn u128_to_u64_saturating(value: u128) -> u64 {
+    if value > u64::MAX as u128 {
+        u64::MAX
+    } else {
+        value as u64
     }
 }
 
@@ -96,13 +105,13 @@ pub enum GasSamplerError {
 pub async fn run_gas_sampler(
     ws_url: &str,
     pool: SqlitePool,
-    oracle: &mut GasOracle,
+    oracle: std::sync::Arc<Mutex<GasOracle>>,
 ) -> Result<(), GasSamplerError> {
     let mut attempts = 0u32;
     let mut backoff = Duration::from_secs(1);
 
     loop {
-        match run_gas_sampler_once(ws_url, &pool, oracle).await {
+        match run_gas_sampler_once(ws_url, &pool, &oracle).await {
             Ok(()) => return Ok(()),
             Err(e) => {
                 attempts += 1;
@@ -119,7 +128,7 @@ pub async fn run_gas_sampler(
 async fn run_gas_sampler_once(
     ws_url: &str,
     pool: &SqlitePool,
-    oracle: &mut GasOracle,
+    oracle: &std::sync::Arc<Mutex<GasOracle>>,
 ) -> Result<(), GasSamplerError> {
     let ws = alloy::transports::ws::WsConnect::new(ws_url);
     let provider = alloy::providers::ProviderBuilder::new()
@@ -142,7 +151,10 @@ async fn run_gas_sampler_once(
             .await
             .map_err(|_| GasSamplerError::ConnectionFailed)?;
 
-        oracle.push_sample(base_fee_wei, priority_fee_wei);
+        {
+            let mut oracle = oracle.lock().await;
+            oracle.push_sample(base_fee_wei, priority_fee_wei);
+        }
 
         let base_gwei = base_fee_wei as f64 / 1_000_000_000.0;
         let priority_gwei = priority_fee_wei as f64 / 1_000_000_000.0;
