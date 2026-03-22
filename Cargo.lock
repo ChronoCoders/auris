@@ -5182,8 +5182,10 @@ dependencies = [
  "tokio",
  "zelvex-api",
  "zelvex-config",
+ "zelvex-core",
  "zelvex-db",
  "zelvex-exec",
+ "zelvex-gas",
 ]
 
 [[package]]
@@ -5203,8 +5205,10 @@ version = "0.1.0"
 dependencies = [
  "alloy",
  "futures-util",
+ "serde_json",
  "thiserror 2.0.18",
  "tokio",
+ "tokio-tungstenite 0.23.1",
  "zelvex-db",
  "zelvex-types",
 ]
@@ -5236,7 +5240,12 @@ dependencies = [
 name = "zelvex-gas"
 version = "0.1.0"
 dependencies = [
+ "alloy",
+ "futures-util",
+ "sqlx",
+ "thiserror 2.0.18",
  "tokio",
+ "zelvex-db",
  "zelvex-types",
 ]
 

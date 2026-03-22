@@ -332,3 +332,120 @@ fn parse_tx_hash(value: &str) -> Result<TxHash, DbError> {
         .parse::<TxHash>()
         .map_err(|_| DbError::InvalidTxHash(value.to_string()))
 }
+
+#[cfg(test)]
+mod tests {
+    use alloy::primitives::{b256, Address, U256};
+    use sqlx::SqlitePool;
+    use zelvex_types::{TradeResult, TradeStatus};
+
+    use super::*;
+
+    #[sqlx::test]
+    async fn users_roundtrip(pool: SqlitePool) -> sqlx::Result<()> {
+        run_migrations(&pool).await?;
+
+        let count = get_user_count(&pool).await?;
+        assert_eq!(count, 0);
+
+        let id = insert_user(&pool, "admin", "hash").await?;
+        assert!(id > 0);
+
+        let count = get_user_count(&pool).await?;
+        assert_eq!(count, 1);
+
+        let user = get_user_by_username(&pool, "admin").await?;
+        assert!(user.is_some());
+
+        let missing = get_user_by_username(&pool, "missing").await?;
+        assert!(missing.is_none());
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn bot_state_roundtrip(pool: SqlitePool) -> sqlx::Result<()> {
+        run_migrations(&pool).await?;
+
+        set_bot_state(&pool, "last_block", "123").await?;
+        let v = get_bot_state(&pool, "last_block").await?;
+        assert_eq!(v.as_deref(), Some("123"));
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn gas_history_insert_and_latest(pool: SqlitePool) -> sqlx::Result<()> {
+        run_migrations(&pool).await?;
+
+        insert_gas_sample(&pool, 10, 1.0, 2.0).await?;
+        insert_gas_sample(&pool, 11, 3.0, 4.0).await?;
+
+        let (block, base, priority): (i64, f64, f64) = sqlx::query_as(
+            "SELECT block_number, base_fee_gwei, priority_fee_gwei FROM gas_history ORDER BY block_number DESC LIMIT 1",
+        )
+        .fetch_one(&pool)
+        .await?;
+
+        assert_eq!(block, 11);
+        assert_eq!(base, 3.0);
+        assert_eq!(priority, 4.0);
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn trades_insert_and_pnl(pool: SqlitePool) -> sqlx::Result<()> {
+        run_migrations(&pool).await?;
+
+        let trade = TradeResult {
+            tx_hash: b256!("0x1111111111111111111111111111111111111111111111111111111111111111"),
+            route: "A->B".to_string(),
+            pool_a: Address::ZERO,
+            pool_b: Address::ZERO,
+            input_amount: U256::from(100u32),
+            output_amount: Some(U256::from(110u32)),
+            gross_profit: Some(U256::from(10u32)),
+            gas_cost_usd: 1.5,
+            net_profit_usd: Some(8.5),
+            gas_used: Some(200_000),
+            status: TradeStatus::Success,
+            block_number: 1,
+            timestamp: 1_700_000_000,
+        };
+
+        let _trade_id = insert_trade(&pool, &trade).await?;
+
+        let pnl = get_pnl_summary(&pool).await?;
+        assert_eq!(pnl.alltime_usd, 8.5);
+
+        let trades = get_recent_trades(&pool, 10)
+            .await
+            .map_err(|e| sqlx::Error::Protocol(e.to_string()))?;
+        assert_eq!(trades.len(), 1);
+        assert_eq!(trades[0].route, "A->B");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn opportunities_insert(pool: SqlitePool) -> sqlx::Result<()> {
+        run_migrations(&pool).await?;
+
+        let opp = zelvex_types::ArbitrageOpportunity {
+            pool_a: Address::ZERO,
+            pool_b: Address::ZERO,
+            token_in: Address::ZERO,
+            token_out: Address::ZERO,
+            input_amount: U256::from(1u32),
+            estimated_profit_usd: 10.0,
+            gas_estimate_usd: 2.0,
+            spread_bps: 10,
+        };
+
+        let id = insert_opportunity(&pool, &opp, "no-go", Some("test"), None).await?;
+        assert!(id > 0);
+
+        Ok(())
+    }
+}

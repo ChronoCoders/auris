@@ -10,5 +10,7 @@ sqlx = { workspace = true }
 tokio = { workspace = true }
 zelvex-api = { path = "../zelvex-api" }
 zelvex-config = { path = "../zelvex-config" }
+zelvex-core = { path = "../zelvex-core" }
 zelvex-db = { path = "../zelvex-db" }
 zelvex-exec = { path = "../zelvex-exec" }
+zelvex-gas = { path = "../zelvex-gas" }

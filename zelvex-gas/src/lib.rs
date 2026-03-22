@@ -1,13 +1,17 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, time::Duration};
 
+use alloy::providers::Provider;
+use futures_util::StreamExt;
+use sqlx::SqlitePool;
+use thiserror::Error;
 use zelvex_types::GasEstimate;
 
 #[derive(Debug, Clone)]
 pub struct GasOracle {
-    base_fee_history_wei: VecDeque<u64>,
-    priority_fee_history_wei: VecDeque<u64>,
-    last_base_fee_wei: u64,
-    last_priority_fee_wei: u64,
+    base_fee_history_wei: VecDeque<u128>,
+    priority_fee_history_wei: VecDeque<u128>,
+    last_base_fee_wei: u128,
+    last_priority_fee_wei: u128,
 }
 
 impl GasOracle {
@@ -20,7 +24,7 @@ impl GasOracle {
         }
     }
 
-    pub fn push_sample(&mut self, base_fee_wei: u64, priority_fee_wei: u64) {
+    pub fn push_sample(&mut self, base_fee_wei: u128, priority_fee_wei: u128) {
         self.last_base_fee_wei = base_fee_wei;
         self.last_priority_fee_wei = priority_fee_wei;
 
@@ -35,12 +39,12 @@ impl GasOracle {
         self.priority_fee_history_wei.push_back(priority_fee_wei);
     }
 
-    pub fn get_current_base_fee(&self) -> u64 {
+    pub fn get_current_base_fee(&self) -> u128 {
         self.last_base_fee_wei
     }
 
-    pub fn get_recommended_priority_fee(&self) -> u64 {
-        let mut samples: Vec<u64> = self
+    pub fn get_recommended_priority_fee(&self) -> u128 {
+        let mut samples: Vec<u128> = self
             .priority_fee_history_wei
             .iter()
             .rev()
@@ -81,6 +85,77 @@ impl Default for GasOracle {
     }
 }
 
+#[derive(Debug, Error)]
+pub enum GasSamplerError {
+    #[error("websocket connection failed")]
+    ConnectionFailed,
+    #[error(transparent)]
+    Db(#[from] sqlx::Error),
+}
+
+pub async fn run_gas_sampler(
+    ws_url: &str,
+    pool: SqlitePool,
+    oracle: &mut GasOracle,
+) -> Result<(), GasSamplerError> {
+    let mut attempts = 0u32;
+    let mut backoff = Duration::from_secs(1);
+
+    loop {
+        match run_gas_sampler_once(ws_url, &pool, oracle).await {
+            Ok(()) => return Ok(()),
+            Err(e) => {
+                attempts += 1;
+                if attempts >= 10 {
+                    return Err(e);
+                }
+                tokio::time::sleep(backoff).await;
+                backoff = backoff.saturating_mul(2);
+            }
+        }
+    }
+}
+
+async fn run_gas_sampler_once(
+    ws_url: &str,
+    pool: &SqlitePool,
+    oracle: &mut GasOracle,
+) -> Result<(), GasSamplerError> {
+    let ws = alloy::transports::ws::WsConnect::new(ws_url);
+    let provider = alloy::providers::ProviderBuilder::new()
+        .on_ws(ws)
+        .await
+        .map_err(|_| GasSamplerError::ConnectionFailed)?;
+
+    let sub = provider
+        .subscribe_blocks()
+        .await
+        .map_err(|_| GasSamplerError::ConnectionFailed)?;
+
+    let mut stream = sub.into_stream();
+    while let Some(block) = stream.next().await {
+        let block_number = block.header.number;
+        let timestamp = block.header.timestamp;
+        let base_fee_wei = block.header.base_fee_per_gas.unwrap_or(0);
+        let priority_fee_wei = provider
+            .get_max_priority_fee_per_gas()
+            .await
+            .map_err(|_| GasSamplerError::ConnectionFailed)?;
+
+        oracle.push_sample(base_fee_wei, priority_fee_wei);
+
+        let base_gwei = base_fee_wei as f64 / 1_000_000_000.0;
+        let priority_gwei = priority_fee_wei as f64 / 1_000_000_000.0;
+
+        zelvex_db::insert_gas_sample(pool, block_number, base_gwei, priority_gwei).await?;
+        zelvex_db::set_bot_state(pool, "last_block", &block_number.to_string()).await?;
+
+        println!("block={} timestamp={}", block_number, timestamp);
+    }
+
+    Err(GasSamplerError::ConnectionFailed)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -88,7 +163,7 @@ mod tests {
     #[test]
     fn ring_buffer_stores_exactly_100_samples() {
         let mut oracle = GasOracle::new();
-        for i in 0..150u64 {
+        for i in 0..150u128 {
             oracle.push_sample(i, i);
         }
         assert_eq!(oracle.base_fee_history_wei.len(), 100);
@@ -100,7 +175,7 @@ mod tests {
     #[test]
     fn recommended_priority_fee_returns_p90_of_last_20() {
         let mut oracle = GasOracle::new();
-        for i in 0..25u64 {
+        for i in 0..25u128 {
             oracle.push_sample(1, i);
         }
         let recommended = oracle.get_recommended_priority_fee();
