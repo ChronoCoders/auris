@@ -34,6 +34,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )
     .await?;
     zelvex_db::set_bot_state(&pool, "max_gas_gwei", &config.bot.max_gas_gwei.to_string()).await?;
+    zelvex_db::set_bot_state(
+        &pool,
+        "min_liquidity_usd",
+        &config.pools.min_liquidity_usd.to_string(),
+    )
+    .await?;
+    zelvex_db::set_bot_state(
+        &pool,
+        "seed_pairs",
+        &config.pools.seed_pairs.len().to_string(),
+    )
+    .await?;
 
     let pool_store = std::sync::Arc::new(Mutex::new(zelvex_core::sync::PoolStore::new()));
     {
