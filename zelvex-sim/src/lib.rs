@@ -1,6 +1,8 @@
+pub mod backtest;
+
 use zelvex_types::{ArbitrageOpportunity, GasEstimate, ProfitDecision};
 
-pub async fn evaluate(
+pub fn evaluate(
     opp: &ArbitrageOpportunity,
     gas: &GasEstimate,
     eth_price_usd: f64,
@@ -32,8 +34,8 @@ mod tests {
 
     use super::*;
 
-    #[tokio::test]
-    async fn net_profit_above_threshold_returns_go() {
+    #[test]
+    fn net_profit_above_threshold_returns_go() {
         let opp = ArbitrageOpportunity {
             pool_a: Address::ZERO,
             pool_b: Address::ZERO,
@@ -49,12 +51,12 @@ mod tests {
             priority_fee_gwei: 1.0,
             recommended_total_gwei: 11.0,
         };
-        let decision = evaluate(&opp, &gas, 3000.0, 5.0).await;
+        let decision = evaluate(&opp, &gas, 3000.0, 5.0);
         assert!(matches!(decision, ProfitDecision::Go { .. }));
     }
 
-    #[tokio::test]
-    async fn net_profit_below_threshold_returns_no_go() {
+    #[test]
+    fn net_profit_below_threshold_returns_no_go() {
         let opp = ArbitrageOpportunity {
             pool_a: Address::ZERO,
             pool_b: Address::ZERO,
@@ -70,7 +72,7 @@ mod tests {
             priority_fee_gwei: 5.0,
             recommended_total_gwei: 105.0,
         };
-        let decision = evaluate(&opp, &gas, 3000.0, 1.0).await;
+        let decision = evaluate(&opp, &gas, 3000.0, 1.0);
         assert!(matches!(decision, ProfitDecision::NoGo { .. }));
     }
 }

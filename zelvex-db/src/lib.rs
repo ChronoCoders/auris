@@ -1,7 +1,7 @@
 use alloy::primitives::{Address, TxHash, U256};
 use sqlx::SqlitePool;
 use thiserror::Error;
-use zelvex_types::{ArbitrageOpportunity, TradeResult, TradeStatus};
+use zelvex_types::{ArbitrageOpportunity, OpportunityRecord, TradeResult, TradeStatus};
 
 #[derive(Debug, Error)]
 pub enum DbError {
@@ -268,6 +268,38 @@ pub async fn insert_gas_sample(
     Ok(())
 }
 
+pub async fn get_opportunities_for_backtest(
+    pool: &SqlitePool,
+    limit: u32,
+    offset: u32,
+) -> Result<Vec<OpportunityRecord>, sqlx::Error> {
+    let rows = sqlx::query_as::<_, (i64, f64, f64, i64, String, Option<String>, i64)>(
+        "SELECT id, estimated_profit, gas_estimate_usd, spread_bps, decision, no_go_reason, timestamp
+         FROM opportunities ORDER BY timestamp ASC, id ASC LIMIT ? OFFSET ?",
+    )
+    .bind(limit as i64)
+    .bind(offset as i64)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(
+            |(id, estimated_profit_usd, gas_estimate_usd, spread_bps, decision, no_go_reason, timestamp)| {
+                OpportunityRecord {
+                    id,
+                    estimated_profit_usd,
+                    gas_estimate_usd,
+                    spread_bps,
+                    original_decision: decision,
+                    original_no_go_reason: no_go_reason,
+                    timestamp,
+                }
+            },
+        )
+        .collect())
+}
+
 pub async fn get_bot_state(pool: &SqlitePool, key: &str) -> Result<Option<String>, sqlx::Error> {
     let row = sqlx::query_as::<_, (String,)>("SELECT value FROM bot_state WHERE key = ? LIMIT 1")
         .bind(key)
@@ -290,6 +322,7 @@ fn trade_status_to_db(status: &TradeStatus) -> &'static str {
         TradeStatus::Success => "success",
         TradeStatus::Failed => "failed",
         TradeStatus::Reverted => "reverted",
+        TradeStatus::Simulated => "simulated",
     }
 }
 
@@ -298,6 +331,7 @@ fn trade_status_from_db(status: &str) -> TradeStatus {
         "success" => TradeStatus::Success,
         "failed" => TradeStatus::Failed,
         "reverted" => TradeStatus::Reverted,
+        "simulated" => TradeStatus::Simulated,
         _ => TradeStatus::Failed,
     }
 }
@@ -445,6 +479,138 @@ mod tests {
 
         let id = insert_opportunity(&pool, &opp, "no-go", Some("test"), None).await?;
         assert!(id > 0);
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn get_opportunities_for_backtest_returns_rows(pool: SqlitePool) -> sqlx::Result<()> {
+        run_migrations(&pool).await?;
+
+        let base_opp = zelvex_types::ArbitrageOpportunity {
+            pool_a: Address::ZERO,
+            pool_b: Address::ZERO,
+            token_in: Address::ZERO,
+            token_out: Address::ZERO,
+            input_amount: U256::from(1u32),
+            estimated_profit_usd: 0.0,
+            gas_estimate_usd: 0.0,
+            spread_bps: 10,
+        };
+
+        // Row 1: profitable go (profit 20, gas 2)
+        let mut opp = base_opp.clone();
+        opp.estimated_profit_usd = 20.0;
+        opp.gas_estimate_usd = 2.0;
+        insert_opportunity(&pool, &opp, "go", None, None).await?;
+
+        // Row 2: no-go (profit 3, gas 2)
+        let mut opp = base_opp.clone();
+        opp.estimated_profit_usd = 3.0;
+        opp.gas_estimate_usd = 2.0;
+        insert_opportunity(
+            &pool,
+            &opp,
+            "no-go",
+            Some("net_profit_usd 1.0000 <= min_profit_usd 5.0000"),
+            None,
+        )
+        .await?;
+
+        let rows = get_opportunities_for_backtest(&pool, 10, 0).await?;
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].original_decision, "go");
+        assert!((rows[0].estimated_profit_usd - 20.0).abs() < 1e-9);
+        assert_eq!(rows[1].original_decision, "no-go");
+        assert!(rows[1].original_no_go_reason.is_some());
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn backtest_end_to_end(pool: SqlitePool) -> sqlx::Result<()> {
+        run_migrations(&pool).await?;
+
+        let base_opp = zelvex_types::ArbitrageOpportunity {
+            pool_a: Address::ZERO,
+            pool_b: Address::ZERO,
+            token_in: Address::ZERO,
+            token_out: Address::ZERO,
+            input_amount: U256::from(1u32),
+            estimated_profit_usd: 0.0,
+            gas_estimate_usd: 0.0,
+            spread_bps: 10,
+        };
+
+        // 3 go rows at original min_profit=5
+        for profit in [20.0_f64, 15.0, 10.0] {
+            let mut opp = base_opp.clone();
+            opp.estimated_profit_usd = profit;
+            opp.gas_estimate_usd = 2.0;
+            insert_opportunity(&pool, &opp, "go", None, None).await?;
+        }
+
+        // 2 no-go rows at original min_profit=5 (net profit 1 and 2)
+        for profit in [3.0_f64, 4.0] {
+            let mut opp = base_opp.clone();
+            opp.estimated_profit_usd = profit;
+            opp.gas_estimate_usd = 2.0;
+            insert_opportunity(
+                &pool,
+                &opp,
+                "no-go",
+                Some("net_profit_usd <= min_profit_usd 5.0"),
+                None,
+            )
+            .await?;
+        }
+
+        let rows = get_opportunities_for_backtest(&pool, 100, 0).await?;
+        assert_eq!(rows.len(), 5);
+
+        // Re-run at same threshold → all 5 should match
+        let report = zelvex_sim::backtest::run_backtest(&rows, 5.0);
+        assert_eq!(report.total, 5);
+        assert_eq!(report.matched, 5);
+        assert_eq!(report.mismatched, 0);
+        assert_eq!(report.match_rate_pct, 100.0);
+
+        // Re-run at raised threshold of 12 → rows with net 8 (10-2) now become no-go
+        // net profits: 18, 13, 8, 1, 2 — only 18 and 13 are > 12 → 2 go, 3 no-go
+        // Original was: go, go, go, no-go, no-go
+        // Recomputed:   go, go, no-go, no-go, no-go
+        // Mismatches: row 3 (was go, now no-go)
+        let report_raised = zelvex_sim::backtest::run_backtest(&rows, 12.0);
+        assert_eq!(report_raised.mismatched, 1);
+        assert_eq!(report_raised.mismatches[0].original_decision, "go");
+        assert_eq!(report_raised.mismatches[0].recomputed_decision, "no-go");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn backtest_pagination(pool: SqlitePool) -> sqlx::Result<()> {
+        run_migrations(&pool).await?;
+
+        let opp = zelvex_types::ArbitrageOpportunity {
+            pool_a: Address::ZERO,
+            pool_b: Address::ZERO,
+            token_in: Address::ZERO,
+            token_out: Address::ZERO,
+            input_amount: U256::from(1u32),
+            estimated_profit_usd: 10.0,
+            gas_estimate_usd: 2.0,
+            spread_bps: 10,
+        };
+
+        for _ in 0..5 {
+            insert_opportunity(&pool, &opp, "go", None, None).await?;
+        }
+
+        let page1 = get_opportunities_for_backtest(&pool, 3, 0).await?;
+        let page2 = get_opportunities_for_backtest(&pool, 3, 3).await?;
+        assert_eq!(page1.len(), 3);
+        assert_eq!(page2.len(), 2);
 
         Ok(())
     }

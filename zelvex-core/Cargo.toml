@@ -9,6 +9,7 @@ futures-util = { workspace = true }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
+tracing = { workspace = true }
 zelvex-gas = { path = "../zelvex-gas" }
 zelvex-sim = { path = "../zelvex-sim" }
 zelvex-db = { path = "../zelvex-db" }

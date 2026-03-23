@@ -8,4 +8,3 @@ zelvex-types = { path = "../zelvex-types" }
 
 [dev-dependencies]
 alloy = { workspace = true }
-tokio = { workspace = true }

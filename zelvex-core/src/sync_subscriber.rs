@@ -43,9 +43,12 @@ pub async fn subscribe_sync_events(
 
         let _ = updates.try_send(());
 
-        println!(
-            "pool={} reserve0={} reserve1={} block={}",
-            pool_address, reserve0, reserve1, block_number
+        tracing::debug!(
+            pool = %pool_address,
+            reserve0 = %reserve0,
+            reserve1 = %reserve1,
+            block = block_number,
+            "sync event"
         );
     }
 
@@ -54,18 +57,12 @@ pub async fn subscribe_sync_events(
     ))
 }
 
-pub fn default_test_pools() -> [Address; 10] {
+pub fn default_test_pools() -> [Address; 4] {
     [
         alloy::primitives::address!("0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc"),
         alloy::primitives::address!("0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11"),
         alloy::primitives::address!("0x397FF1542f962076d0BFE58eA045FfA2d347ACa0"),
         alloy::primitives::address!("0xC3D03e4F041Fd4cD388c549Ee2A29a9E5075882f"),
-        alloy::primitives::address!("0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc"),
-        alloy::primitives::address!("0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11"),
-        alloy::primitives::address!("0x397FF1542f962076d0BFE58eA045FfA2d347ACa0"),
-        alloy::primitives::address!("0xC3D03e4F041Fd4cD388c549Ee2A29a9E5075882f"),
-        alloy::primitives::address!("0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc"),
-        alloy::primitives::address!("0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11"),
     ]
 }
 

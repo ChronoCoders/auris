@@ -8,6 +8,8 @@ alloy = { workspace = true }
 axum = { workspace = true }
 sqlx = { workspace = true }
 tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 zelvex-api = { path = "../zelvex-api" }
 zelvex-config = { path = "../zelvex-config" }
 zelvex-core = { path = "../zelvex-core" }

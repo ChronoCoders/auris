@@ -162,7 +162,7 @@ async fn run_gas_sampler_once(
         zelvex_db::insert_gas_sample(pool, block_number, base_gwei, priority_gwei).await?;
         zelvex_db::set_bot_state(pool, "last_block", &block_number.to_string()).await?;
 
-        println!("block={} timestamp={}", block_number, timestamp);
+        tracing::info!(block = block_number, timestamp, "new block");
     }
 
     Err(GasSamplerError::ConnectionFailed)

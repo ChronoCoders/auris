@@ -72,13 +72,19 @@ pub async fn run_scanner(
             oracle.get_current_gas_estimate()
         };
 
+        let gas_units = 200_000u64;
+        let gas_cost_eth = (gas.recommended_total_gwei * gas_units as f64) / 1_000_000_000.0;
+        let gas_estimate_usd = gas_cost_eth * eth_price_usd;
+
         let opportunities = {
             let store = store.lock().await;
             scan_pairs(&store, &pool_pairs, eth_price_usd)
         };
 
-        for opp in opportunities {
-            let decision = evaluate(&opp, &gas, eth_price_usd, min_profit_usd).await;
+        for mut opp in opportunities {
+            opp.gas_estimate_usd = gas_estimate_usd;
+
+            let decision = evaluate(&opp, &gas, eth_price_usd, min_profit_usd);
             let (decision_str, reason) = match decision {
                 ProfitDecision::Go { .. } => ("go", None),
                 ProfitDecision::NoGo { reason } => ("no-go", Some(reason)),
@@ -108,6 +114,11 @@ fn scan_pairs(
         let Some(token_out) =
             stable_token_out(pool_a.token0, pool_a.token1, pool_b.token0, pool_b.token1)
         else {
+            tracing::debug!(
+                pool_a = %a,
+                pool_b = %b,
+                "skipping pair: no shared WETH/stablecoin route"
+            );
             continue;
         };
 
@@ -178,8 +189,8 @@ fn build_opportunity(
         return None;
     }
 
-    let price_a = amm::get_spot_price(a_in, a_out);
-    let price_b = amm::get_spot_price(b_out, b_in);
+    let price_a = amm::get_spot_price(a_in, a_out)?;
+    let price_b = amm::get_spot_price(b_out, b_in)?;
     let spread_bps = spread_bps(price_a, price_b);
 
     Some(ArbitrageOpportunity {

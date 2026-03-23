@@ -14,6 +14,8 @@ alloy::sol! {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    tracing_subscriber::fmt::init();
+
     let config_path = parse_config_path()?;
     let config = zelvex_config::load(&config_path)?;
 
@@ -188,10 +190,11 @@ async fn fetch_pool_metadata(
 }
 
 fn unique_addresses(addresses: &[Address]) -> Vec<Address> {
-    let mut out: Vec<Address> = Vec::new();
-    for a in addresses {
-        if !out.contains(a) {
-            out.push(*a);
+    let mut seen = std::collections::HashSet::new();
+    let mut out = Vec::new();
+    for &a in addresses {
+        if seen.insert(a) {
+            out.push(a);
         }
     }
     out

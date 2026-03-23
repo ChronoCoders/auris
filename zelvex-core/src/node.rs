@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use alloy::providers::Provider;
 use futures_util::StreamExt;
 use thiserror::Error;
@@ -36,53 +34,12 @@ pub async fn get_next_head(ws_url: &str) -> Result<(u64, u64, Option<u128>), Nod
     ))
 }
 
-pub async fn subscribe_new_heads(ws_url: &str) -> Result<(), NodeError> {
-    let mut attempts = 0u32;
-    let mut backoff = Duration::from_secs(1);
-    loop {
-        match subscribe_new_heads_once(ws_url).await {
-            Ok(()) => return Ok(()),
-            Err(e) => {
-                attempts += 1;
-                if attempts >= 10 {
-                    return Err(e);
-                }
-                tokio::time::sleep(backoff).await;
-                backoff = backoff.saturating_mul(2);
-            }
-        }
-    }
-}
-
-async fn subscribe_new_heads_once(ws_url: &str) -> Result<(), NodeError> {
-    let ws = alloy::transports::ws::WsConnect::new(ws_url);
-    let provider = alloy::providers::ProviderBuilder::new()
-        .on_ws(ws)
-        .await
-        .map_err(|e| NodeError::ConnectionFailed(e.to_string()))?;
-
-    let sub = provider
-        .subscribe_blocks()
-        .await
-        .map_err(|e| NodeError::ConnectionFailed(e.to_string()))?;
-
-    let mut stream = sub.into_stream();
-    while let Some(block) = stream.next().await {
-        let block_number = block.header.number;
-        let timestamp = block.header.timestamp;
-        println!("block={} timestamp={}", block_number, timestamp);
-    }
-
-    Err(NodeError::ConnectionFailed(
-        "subscription ended".to_string(),
-    ))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     use std::io::Error;
+    use std::time::Duration;
 
     use futures_util::SinkExt;
     use tokio::net::TcpListener;

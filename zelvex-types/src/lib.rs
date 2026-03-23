@@ -46,6 +46,7 @@ pub enum TradeStatus {
     Success,
     Failed,
     Reverted,
+    Simulated,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,6 +70,19 @@ pub struct GasEstimate {
     pub base_fee_gwei: f64,
     pub priority_fee_gwei: f64,
     pub recommended_total_gwei: f64,
+}
+
+/// A stored opportunity row as returned from the DB, used as input to backtesting.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OpportunityRecord {
+    pub id: i64,
+    pub estimated_profit_usd: f64,
+    pub gas_estimate_usd: f64,
+    pub spread_bps: i64,
+    /// `"go"` or `"no-go"` — the decision recorded at detection time.
+    pub original_decision: String,
+    pub original_no_go_reason: Option<String>,
+    pub timestamp: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

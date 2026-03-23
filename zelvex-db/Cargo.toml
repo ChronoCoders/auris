@@ -9,3 +9,6 @@ sqlx = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 zelvex-types = { path = "../zelvex-types" }
+
+[dev-dependencies]
+zelvex-sim = { path = "../zelvex-sim" }
