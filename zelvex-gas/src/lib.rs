@@ -193,4 +193,22 @@ mod tests {
         let recommended = oracle.get_recommended_priority_fee();
         assert_eq!(recommended, 22);
     }
+
+    #[test]
+    fn estimate_gas_cost_usd_returns_correct_usd() {
+        let mut oracle = GasOracle::new();
+        // base 10 gwei, priority 1 gwei → total 11 gwei = 11_000_000_000 wei
+        let base_fee_wei = 10_000_000_000u128;
+        let priority_fee_wei = 1_000_000_000u128;
+        oracle.push_sample(base_fee_wei, priority_fee_wei);
+
+        // 200_000 gas * 11e9 wei/gas / 1e18 wei/ETH = 0.0022 ETH
+        // 0.0022 ETH * $3000/ETH = $6.60
+        let cost = oracle.estimate_gas_cost_usd(200_000, 3000.0);
+        let expected = 6.6_f64;
+        assert!(
+            (cost - expected).abs() < 1e-6,
+            "expected ~{expected} USD, got {cost}"
+        );
+    }
 }

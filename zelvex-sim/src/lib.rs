@@ -75,4 +75,51 @@ mod tests {
         let decision = evaluate(&opp, &gas, 3000.0, 1.0);
         assert!(matches!(decision, ProfitDecision::NoGo { .. }));
     }
+
+    #[test]
+    fn zero_profit_returns_no_go() {
+        // estimated_profit_usd exactly equals gas_cost_usd → net = 0, not > min_profit 0
+        // gas: 200_000 units * 10 gwei total / 1e9 * 3000 USD/ETH = 6.0 USD
+        let opp = ArbitrageOpportunity {
+            pool_a: Address::ZERO,
+            pool_b: Address::ZERO,
+            token_in: Address::ZERO,
+            token_out: Address::ZERO,
+            input_amount: U256::from(1u32),
+            estimated_profit_usd: 6.0,
+            gas_estimate_usd: 6.0,
+            spread_bps: 0,
+        };
+        let gas = GasEstimate {
+            base_fee_gwei: 10.0,
+            priority_fee_gwei: 0.0,
+            recommended_total_gwei: 10.0,
+        };
+        // net = 6.0 - (200_000 * 10 / 1e9 * 3000) = 6.0 - 6.0 = 0.0
+        // 0.0 is not > 0.0, so NoGo
+        let decision = evaluate(&opp, &gas, 3000.0, 0.0);
+        assert!(matches!(decision, ProfitDecision::NoGo { .. }));
+    }
+
+    #[test]
+    fn negative_profit_gas_exceeds_gross_returns_no_go() {
+        // Gas cost exceeds estimated profit → negative net
+        let opp = ArbitrageOpportunity {
+            pool_a: Address::ZERO,
+            pool_b: Address::ZERO,
+            token_in: Address::ZERO,
+            token_out: Address::ZERO,
+            input_amount: U256::from(1u32),
+            estimated_profit_usd: 1.0,
+            gas_estimate_usd: 20.0,
+            spread_bps: 5,
+        };
+        let gas = GasEstimate {
+            base_fee_gwei: 200.0,
+            priority_fee_gwei: 10.0,
+            recommended_total_gwei: 210.0,
+        };
+        let decision = evaluate(&opp, &gas, 3000.0, 0.0);
+        assert!(matches!(decision, ProfitDecision::NoGo { .. }));
+    }
 }
