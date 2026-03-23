@@ -83,21 +83,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
     }
 
+    let executor = zelvex_exec::ArbitrageExecutor::new(
+        &config.node.ws_url,
+        &config.keys.signer_key_path,
+        &config.keys.flashbots_key_path,
+        &config.flashbots.relay_url,
+        config.keys.contract_address,
+        config.bot.paper_trade,
+        pool.clone(),
+    )
+    .await?;
+    let executor = std::sync::Arc::new(executor);
+
     {
-        let ws_url = config.node.ws_url.clone();
-        let pool_store = pool_store.clone();
-        let db = pool.clone();
-        let gas_oracle = gas_oracle.clone();
-        let min_profit_usd = config.bot.min_profit_usd;
+        let scanner_cfg = zelvex_core::scanner::ScannerConfig {
+            ws_url: config.node.ws_url.clone(),
+            pool_pairs,
+            store: pool_store.clone(),
+            db: pool.clone(),
+            gas_oracle: gas_oracle.clone(),
+            min_profit_usd: config.bot.min_profit_usd,
+            executor: Some(executor.clone()),
+        };
         tokio::spawn(async move {
             if let Err(e) = zelvex_core::scanner::run_scanner(
-                ws_url,
+                scanner_cfg,
                 updates_rx,
-                pool_pairs,
-                pool_store,
-                db,
-                gas_oracle,
-                min_profit_usd,
             )
             .await
             {

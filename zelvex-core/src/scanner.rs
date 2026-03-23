@@ -3,10 +3,14 @@ use std::{
     time::{Duration, Instant},
 };
 
-use alloy::primitives::{Address, U256};
+use alloy::{
+    primitives::{Address, U256},
+    providers::Provider,
+};
 use sqlx::SqlitePool;
 use thiserror::Error;
 use tokio::sync::{mpsc, Mutex};
+use zelvex_exec::ArbitrageExecutor;
 use zelvex_gas::GasOracle;
 use zelvex_sim::evaluate;
 use zelvex_types::{ArbitrageOpportunity, ProfitDecision};
@@ -45,15 +49,29 @@ pub enum ScannerError {
     Db(#[from] sqlx::Error),
 }
 
+pub struct ScannerConfig {
+    pub ws_url: String,
+    pub pool_pairs: Vec<(Address, Address)>,
+    pub store: Arc<Mutex<PoolStore>>,
+    pub db: SqlitePool,
+    pub gas_oracle: Arc<Mutex<GasOracle>>,
+    pub min_profit_usd: f64,
+    pub executor: Option<Arc<ArbitrageExecutor>>,
+}
+
 pub async fn run_scanner(
-    ws_url: String,
+    config: ScannerConfig,
     mut updates: mpsc::Receiver<()>,
-    pool_pairs: Vec<(Address, Address)>,
-    store: Arc<Mutex<PoolStore>>,
-    db: SqlitePool,
-    gas_oracle: Arc<Mutex<GasOracle>>,
-    min_profit_usd: f64,
 ) -> Result<(), ScannerError> {
+    let ScannerConfig {
+        ws_url,
+        pool_pairs,
+        store,
+        db,
+        gas_oracle,
+        min_profit_usd,
+        executor,
+    } = config;
     let provider = ws_provider(&ws_url).await?;
 
     let mut eth_price_usd = 0.0;
@@ -85,12 +103,46 @@ pub async fn run_scanner(
             opp.gas_estimate_usd = gas_estimate_usd;
 
             let decision = evaluate(&opp, &gas, eth_price_usd, min_profit_usd);
-            let (decision_str, reason) = match decision {
+            let (decision_str, reason) = match &decision {
                 ProfitDecision::Go { .. } => ("go", None),
-                ProfitDecision::NoGo { reason } => ("no-go", Some(reason)),
+                ProfitDecision::NoGo { reason } => ("no-go", Some(reason.clone())),
             };
 
-            zelvex_db::insert_opportunity(&db, &opp, decision_str, reason.as_deref(), None).await?;
+            let trade_id: Option<i64> = if matches!(decision, ProfitDecision::Go { .. }) {
+                if let Some(ref exec) = executor {
+                    let current_block = provider
+                        .get_block_number()
+                        .await
+                        .map_err(|e| ScannerError::Ws(e.to_string()))?;
+
+                    match exec
+                        .execute(&opp, U256::from(1u32), current_block)
+                        .await
+                    {
+                        Ok(id) => {
+                            tracing::info!(trade_id = id, "arbitrage executed, trade recorded");
+                            Some(id)
+                        }
+                        Err(e) => {
+                            tracing::error!(error = %e, "arbitrage execution failed");
+                            None
+                        }
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            zelvex_db::insert_opportunity(
+                &db,
+                &opp,
+                decision_str,
+                reason.as_deref(),
+                trade_id,
+            )
+            .await?;
         }
     }
 

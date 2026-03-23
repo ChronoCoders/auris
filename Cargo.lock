@@ -5301,6 +5301,7 @@ dependencies = [
  "tokio-tungstenite 0.23.1",
  "tracing",
  "zelvex-db",
+ "zelvex-exec",
  "zelvex-gas",
  "zelvex-sim",
  "zelvex-types",
@@ -5325,9 +5326,14 @@ dependencies = [
  "alloy",
  "hex",
  "reqwest",
+ "serde_json",
+ "sqlx",
  "thiserror 2.0.18",
  "tokio",
+ "tracing",
  "zelvex-config",
+ "zelvex-db",
+ "zelvex-types",
 ]
 
 [[package]]
