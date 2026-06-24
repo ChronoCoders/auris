@@ -1,0 +1,10 @@
+﻿[package]
+name = "auris-sim"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+auris-types = { path = "../auris-types" }
+
+[dev-dependencies]
+alloy = { workspace = true }

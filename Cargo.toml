@@ -1,14 +1,14 @@
-[workspace]
+﻿[workspace]
 members = [
-  "zelvex-types",
-  "zelvex-config",
-  "zelvex-db",
-  "zelvex-gas",
-  "zelvex-core",
-  "zelvex-sim",
-  "zelvex-exec",
-  "zelvex-api",
-  "zelvex-bin",
+  "auris-types",
+  "auris-config",
+  "auris-db",
+  "auris-gas",
+  "auris-core",
+  "auris-sim",
+  "auris-exec",
+  "auris-api",
+  "auris-bin",
 ]
 resolver = "2"
 
