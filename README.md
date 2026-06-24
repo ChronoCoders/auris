@@ -1,20 +1,20 @@
-# ZELVEX
+﻿# AURIS
 
-ZELVEX is a Rust workspace that implements the initial scaffolding for a DeFi arbitrage bot stack: config loading, SQLite persistence/migrations, an API server (REST + WebSocket), and core math and subscription primitives.
+AURIS is a Rust workspace that implements the initial scaffolding for a DeFi arbitrage bot stack: config loading, SQLite persistence/migrations, an API server (REST + WebSocket), and core math and subscription primitives.
 
 This repository enforces a strict quality gate: no warnings, no unused code, formatting checked, tests required.
 
 ## Workspace Layout
 
-- `zelvex-types`: shared domain types
-- `zelvex-config`: `config.toml` loader + `ZELVEX_*` env overrides
-- `zelvex-db`: SQLite migrations + query helpers
-- `zelvex-core`: AMM math + websocket subscription scaffolding (new heads, Uniswap V2 Sync logs)
-- `zelvex-gas`: gas oracle (ring buffer + p90 priority fee)
-- `zelvex-sim`: profit decision engine (`evaluate`)
-- `zelvex-exec`: execution helpers (key loading)
-- `zelvex-api`: REST + WebSocket API server, JWT auth, static web UI serving
-- `zelvex-bin`: binary wiring everything together
+- `auris-types`: shared domain types
+- `auris-config`: `config.toml` loader + `AURIS_*` env overrides
+- `auris-db`: SQLite migrations + query helpers
+- `auris-core`: AMM math + websocket subscription scaffolding (new heads, Uniswap V2 Sync logs)
+- `auris-gas`: gas oracle (ring buffer + p90 priority fee)
+- `auris-sim`: profit decision engine (`evaluate`)
+- `auris-exec`: execution helpers (key loading)
+- `auris-api`: REST + WebSocket API server, JWT auth, static web UI serving
+- `auris-bin`: binary wiring everything together
 - `web-ui`: minimal UI served by the API
 
 ## Quickstart
@@ -44,7 +44,7 @@ bind_addr = "127.0.0.1:8080"
 web_ui_path = "./web-ui"
 
 [database]
-path = "./zelvex.sqlite"
+path = "./auris.sqlite"
 
 [auth]
 jwt_secret = "CHANGE_ME"
@@ -60,7 +60,7 @@ aave_pool_provider = "0x2f39d218133AFaB8F2B819B1066c7E434Ad94E9e"
 ### 3) Run
 
 ```bash
-cargo run -p zelvex-bin -- --config ./config.toml
+cargo run -p auris-bin -- --config ./config.toml
 ```
 
 This will:
@@ -108,16 +108,16 @@ Send JWT in:
 
 Any config key can be overridden via environment variables:
 
-- `ZELVEX_NODE_WS_URL`
-- `ZELVEX_SERVER_BIND_ADDR`
-- `ZELVEX_DATABASE_PATH`
-- `ZELVEX_AUTH_JWT_SECRET`
-- `ZELVEX_KEYS_SIGNER_KEY_PATH`
-- `ZELVEX_KEYS_CONTRACT_ADDRESS`
+- `AURIS_NODE_WS_URL`
+- `AURIS_SERVER_BIND_ADDR`
+- `AURIS_DATABASE_PATH`
+- `AURIS_AUTH_JWT_SECRET`
+- `AURIS_KEYS_SIGNER_KEY_PATH`
+- `AURIS_KEYS_CONTRACT_ADDRESS`
 
 Pattern:
 
-`ZELVEX_<SECTION>_<KEY>` (uppercased).
+`AURIS_<SECTION>_<KEY>` (uppercased).
 
 ## Quality Gate
 

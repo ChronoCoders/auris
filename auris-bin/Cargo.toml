@@ -1,0 +1,19 @@
+﻿[package]
+name = "auris-bin"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+alloy = { workspace = true }
+axum = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+auris-api = { path = "../auris-api" }
+auris-config = { path = "../auris-config" }
+auris-core = { path = "../auris-core" }
+auris-db = { path = "../auris-db" }
+auris-exec = { path = "../auris-exec" }
+auris-gas = { path = "../auris-gas" }
+auris-types = { path = "../auris-types" }
