@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auris · Sign In</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; border: 0; }
+
+    :root {
+      --bg:      #0a0a0a;
+      --surface: #111111;
+      --border:  #1f1f1f;
+      --border2: #2a2a2a;
+      --accent:  #F59E0B;
+      --text:    #e4e4e7;
+      --muted:   #71717a;
+      --dim:     #52525b;
+      --green:   #4ade80;
+      --red:     #f87171;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .font-display { font-family: 'Space Grotesk', 'Inter', sans-serif; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 480px 1fr;
+      grid-template-rows: 1fr;
+      min-height: 100vh;
+      align-items: center;
+    }
+
+    .brand-col {
+      padding: 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 48px;
+      border-right: 1px solid var(--border);
+      height: 100%;
+      justify-content: center;
+    }
+
+    .logo-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: var(--accent);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .logo-name {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-stat {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .brand-stat-val {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 32px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-stat-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .brand-stats {
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .stat-divider {
+      height: 1px;
+      background: var(--border);
+    }
+
+    .brand-tagline {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.7;
+      max-width: 320px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--green);
+      width: fit-content;
+    }
+
+    .pulse {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s cubic-bezier(.4,0,.6,1) infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ── Auth panel ── */
+    .auth-col {
+      padding: 48px 56px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 100vh;
+      border-right: 1px solid var(--border);
+    }
+
+    .auth-header {
+      margin-bottom: 32px;
+    }
+
+    .auth-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin-bottom: 6px;
+    }
+
+    .auth-sub {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .tab-row {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 28px;
+    }
+
+    .tab {
+      padding: 10px 20px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      font-family: inherit;
+      transition: color .15s, border-color .15s;
+    }
+
+    .tab.active {
+      color: var(--text);
+      border-bottom-color: var(--accent);
+    }
+
+    .tab:hover:not(.active) { color: var(--text); }
+
+    .form { display: flex; flex-direction: column; gap: 16px; }
+    .form.hidden { display: none; }
+
+    .field { display: flex; flex-direction: column; gap: 7px; }
+
+    .field-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .field-input {
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: 12px;
+      color: var(--text);
+      padding: 11px 14px;
+      outline: none;
+      transition: border-color .15s;
+    }
+
+    .field-input:focus { border-color: var(--accent); }
+    .field-input::placeholder { color: var(--dim); }
+
+    .field-error {
+      font-size: 11px;
+      color: var(--red);
+      min-height: 15px;
+    }
+
+    .btn-primary {
+      margin-top: 4px;
+      padding: 12px;
+      background: var(--accent);
+      color: #000;
+      border-radius: 12px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+      border: none;
+    }
+
+    .btn-primary:hover { background: #fbbf24; }
+
+    .auth-footer {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--dim);
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    /* ── Right decoration column ── */
+    .deco-col {
+      padding: 48px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .deco-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 18px 20px;
+    }
+
+    .deco-card-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--dim);
+      margin-bottom: 8px;
+    }
+
+    .deco-card-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+
+    .deco-card-key { color: var(--muted); }
+    .deco-card-val { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+    .tag {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 6px;
+    }
+
+    .tag-green { background: rgba(74,222,128,.1); color: var(--green); }
+    .tag-red   { background: rgba(248,113,113,.1); color: var(--red); }
+    .tag-amber { background: rgba(245,158,11,.1);  color: var(--accent); }
+  </style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- Brand column -->
+  <div class="brand-col">
+    <div>
+      <div class="logo-row" style="margin-bottom:32px;">
+        <div class="logo-icon">
+          <i class="fa-solid fa-bolt" style="color:#0a0a0a;font-size:17px;"></i>
+        </div>
+        <span class="logo-name">Auris</span>
+      </div>
+      <div class="status-badge">
+        <div class="pulse"></div>
+        Ethereum Mainnet · Live
+      </div>
+    </div>
+
+    <div class="brand-stats">
+      <div class="brand-stat">
+        <div class="brand-stat-val" style="color:var(--green);">+$24,640</div>
+        <div class="brand-stat-label">All-time net P&L</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="brand-stat">
+        <div class="brand-stat-val">2,401,847</div>
+        <div class="brand-stat-label">Opportunities scanned</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="brand-stat">
+        <div class="brand-stat-val" style="color:var(--accent);">71.5%</div>
+        <div class="brand-stat-label">Trade success rate</div>
+      </div>
+    </div>
+
+    <p class="brand-tagline">
+      Real-time Uniswap V2 arbitrage. Flash loans via Aave V3.
+      Private mempool submission through Flashbots. Single Rust binary.
+    </p>
+  </div>
+
+  <!-- Auth column -->
+  <div class="auth-col">
+    <div class="auth-header">
+      <div class="auth-title">Welcome back</div>
+      <div class="auth-sub">Sign in to your Auris dashboard</div>
+    </div>
+
+    <div class="tab-row">
+      <button class="tab active" id="tab-login" onclick="switchTab('login')">Sign In</button>
+      <button class="tab" id="tab-signup" onclick="switchTab('signup')">Create Account</button>
+    </div>
+
+    <!-- Login form -->
+    <div class="form" id="form-login">
+      <div class="field">
+        <div class="field-label">Username</div>
+        <input class="field-input" id="login-user" type="text" placeholder="your username" autocomplete="username" />
+      </div>
+      <div class="field">
+        <div class="field-label">Password</div>
+        <input class="field-input" id="login-pass" type="password" placeholder="••••••••••••" autocomplete="current-password" />
+      </div>
+      <div class="field-error" id="login-error"></div>
+      <button class="btn-primary" onclick="doLogin()">Sign In</button>
+    </div>
+
+    <!-- Signup form -->
+    <div class="form hidden" id="form-signup">
+      <div class="field">
+        <div class="field-label">Username</div>
+        <input class="field-input" id="signup-user" type="text" placeholder="choose a username" autocomplete="username" />
+      </div>
+      <div class="field">
+        <div class="field-label">Password</div>
+        <input class="field-input" id="signup-pass" type="password" placeholder="minimum 12 characters" autocomplete="new-password" />
+      </div>
+      <div class="field">
+        <div class="field-label">Confirm Password</div>
+        <input class="field-input" id="signup-confirm" type="password" placeholder="••••••••••••" autocomplete="new-password" />
+      </div>
+      <div class="field-error" id="signup-error"></div>
+      <button class="btn-primary" onclick="doSignup()">Create Account</button>
+    </div>
+
+    <div class="auth-footer">
+      Single-operator system. Registration is disabled<br>after the first account is created.
+    </div>
+  </div>
+
+  <!-- Decoration column -->
+  <div class="deco-col">
+
+    <div class="deco-card">
+      <div class="deco-card-label">Live Gas Oracle</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px;">
+        <div class="deco-card-row">
+          <span class="deco-card-key">Base fee</span>
+          <span class="deco-card-val" id="d-base">12.4 gwei</span>
+        </div>
+        <div class="deco-card-row">
+          <span class="deco-card-key">Priority fee</span>
+          <span class="deco-card-val" id="d-priority">1.5 gwei</span>
+        </div>
+        <div class="deco-card-row">
+          <span class="deco-card-key">Min profit gate</span>
+          <span class="deco-card-val" style="color:var(--accent);" id="d-gate">$4.20</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="deco-card">
+      <div class="deco-card-label">Recent Trades</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px;" id="d-trades">
+        <div class="deco-card-row">
+          <span class="deco-card-key" style="font-family:monospace;font-size:11px;">WETH → USDC → WETH</span>
+          <span class="tag tag-green">+$42.18</span>
+        </div>
+        <div class="deco-card-row">
+          <span class="deco-card-key" style="font-family:monospace;font-size:11px;">WETH → DAI → USDC</span>
+          <span class="tag tag-red">-$8.22</span>
+        </div>
+        <div class="deco-card-row">
+          <span class="deco-card-key" style="font-family:monospace;font-size:11px;">USDC → WETH → DAI</span>
+          <span class="tag tag-green">+$31.60</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="deco-card">
+      <div class="deco-card-label">Bot Status</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+        <div class="pulse"></div>
+        <span style="font-size:13px;font-weight:600;">Running</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--muted);" id="d-block">Block 21,847,392</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  'use strict';
+
+  // ── Demo credential store (in-memory) ─────────────────
+  const users = {};
+
+  function switchTab(tab) {
+    document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+    document.getElementById('tab-signup').classList.toggle('active', tab === 'signup');
+    document.getElementById('form-login').classList.toggle('hidden', tab !== 'login');
+    document.getElementById('form-signup').classList.toggle('hidden', tab !== 'signup');
+    document.getElementById('login-error').textContent = '';
+    document.getElementById('signup-error').textContent = '';
+  }
+
+  function doLogin() {
+    const user = document.getElementById('login-user').value.trim();
+    const pass = document.getElementById('login-pass').value;
+    const err  = document.getElementById('login-error');
+
+    if (!user || !pass)                        { err.textContent = 'Username and password required'; return; }
+    if (!users[user.toLowerCase()])            { err.textContent = 'Invalid credentials'; return; }
+    if (users[user.toLowerCase()] !== pass)    { err.textContent = 'Invalid credentials'; return; }
+
+    err.textContent = '';
+    sessionStorage.setItem('auris_jwt', 'demo-jwt-' + Date.now());
+    window.location.href = 'dashboard.html';
+  }
+
+  function doSignup() {
+    const user    = document.getElementById('signup-user').value.trim();
+    const pass    = document.getElementById('signup-pass').value;
+    const confirm = document.getElementById('signup-confirm').value;
+    const err     = document.getElementById('signup-error');
+
+    if (!user || !pass)             { err.textContent = 'All fields required'; return; }
+    if (pass.length < 12)           { err.textContent = 'Password must be at least 12 characters'; return; }
+    if (pass !== confirm)           { err.textContent = 'Passwords do not match'; return; }
+    if (users[user.toLowerCase()])  { err.textContent = 'Username already taken'; return; }
+
+    err.textContent = '';
+    users[user.toLowerCase()] = pass;
+    sessionStorage.setItem('auris_jwt', 'demo-jwt-' + Date.now());
+    window.location.href = 'dashboard.html';
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter') return;
+    const loginActive = !document.getElementById('form-login').classList.contains('hidden');
+    loginActive ? doLogin() : doSignup();
+  });
+
+  // ── Decorative live data ───────────────────────────────
+  let block = 21847392;
+
+  function tickDeco() {
+    block += 1;
+    document.getElementById('d-block').textContent = 'Block ' + block.toLocaleString();
+    const base     = (Math.random() * 8 + 8).toFixed(1);
+    const priority = (Math.random() * 1 + 1).toFixed(1);
+    const gate     = (parseFloat(base) * 0.3 + 1.5).toFixed(2);
+    document.getElementById('d-base').textContent     = base + ' gwei';
+    document.getElementById('d-priority').textContent = priority + ' gwei';
+    document.getElementById('d-gate').textContent     = '$' + gate;
+  }
+
+  setInterval(tickDeco, 12000);
+</script>
+</body>
+</html>

@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auris · Dashboard</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; border: 0; }
+
+    :root {
+      --bg:      #0a0a0a;
+      --surface: #111111;
+      --border:  #1f1f1f;
+      --border2: #2a2a2a;
+      --accent:  #F59E0B;
+      --text:    #e4e4e7;
+      --muted:   #71717a;
+      --dim:     #52525b;
+      --green:   #4ade80;
+      --red:     #f87171;
+    }
+
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    .font-display { font-family: 'Space Grotesk', 'Inter', sans-serif; }
+    .tabnum { font-variant-numeric: tabular-nums; }
+
+    .pulse { animation: pulse 2s cubic-bezier(.4,0,.6,1) infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ── Layout ── */
+    .layout { display: flex; height: 100vh; overflow: hidden; }
+
+    /* ── Sidebar ── */
+    .sidebar { width: 240px; border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; background: var(--bg); }
+
+    .logo-area { height: 64px; padding: 0 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .logo-icon { width: 34px; height: 34px; background: var(--accent); border-radius: 17px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .logo-name { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+
+    .nav-area { padding: 10px; flex: 1; overflow-y: auto; }
+    .nav-section { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); padding: 12px 14px 6px; }
+
+    .nav-link { display: flex; align-items: center; gap: 10px; padding: 9px 14px; font-size: 13px; font-weight: 500; color: var(--muted); border-radius: 10px; text-decoration: none; cursor: pointer; transition: color .15s, background .15s; }
+    .nav-link:hover { color: var(--text); background: var(--surface); }
+    .nav-link.active { background: var(--surface); color: var(--text); border-left: 2px solid var(--accent); padding-left: 12px; }
+    .nav-link .nav-icon { width: 15px; text-align: center; flex-shrink: 0; }
+
+    .sidebar-footer { padding: 14px; border-top: 1px solid var(--border); }
+    .user-row { display: flex; align-items: center; gap: 10px; }
+    .user-avatar { width: 30px; height: 30px; background: var(--surface); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid var(--border2); }
+    .user-name { font-size: 12px; font-weight: 500; font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .user-status { display: flex; align-items: center; gap: 5px; margin-top: 2px; }
+    .status-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
+
+    /* ── Main ── */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+    .topbar { height: 64px; border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; background: var(--bg); }
+
+    .topbar-left { display: flex; align-items: center; gap: 12px; }
+    .page-title { font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+
+    .network-badge { display: flex; align-items: center; gap: 7px; padding: 5px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 99px; font-size: 11px; font-weight: 500; color: var(--green); }
+
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+
+    .block-badge { font-size: 11px; color: var(--muted); font-family: monospace; }
+    .block-badge span { color: var(--text); }
+
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; border-radius: 10px; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; border: 1px solid var(--border2); background: var(--surface); color: var(--text); }
+    .btn:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-start { border-color: rgba(74,222,128,.4); color: var(--green); }
+    .btn-start:hover { background: rgba(74,222,128,.08); border-color: var(--green); }
+    .btn-stop  { border-color: rgba(248,113,113,.4); color: var(--red); }
+    .btn-stop:hover  { background: rgba(248,113,113,.08); border-color: var(--red); }
+    .btn-logout { color: var(--muted); font-size: 11px; }
+    .btn-logout:hover { color: var(--text); border-color: var(--muted); }
+
+    /* ── Content ── */
+    .content { flex: 1; overflow-y: auto; padding: 24px; }
+    .inner { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+    /* Sections */
+    .section { display: none; flex-direction: column; gap: 20px; }
+    .section.active { display: flex; }
+
+    /* ── Cards ── */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; }
+
+    /* ── KPI grid ── */
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 20px; }
+    .kpi-label { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); margin-bottom: 8px; }
+    .kpi-val { font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+    .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 6px; }
+    .prog-wrap { height: 3px; background: var(--border); border-radius: 2px; margin-top: 10px; overflow: hidden; }
+    .prog-bar { height: 3px; border-radius: 2px; transition: width 1s ease; }
+
+    /* ── Two / three col ── */
+    .two-col   { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+    /* ── Table ── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    thead th { text-align: left; padding: 10px 16px; font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); border-bottom: 1px solid var(--border); white-space: nowrap; }
+    tbody td { padding: 11px 16px; border-bottom: 1px solid rgba(31,31,31,.6); color: var(--text); white-space: nowrap; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:hover td { background: rgba(255,255,255,.02); }
+
+    .tag { display: inline-flex; align-items: center; font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 6px; }
+    .tag-success { background: rgba(74,222,128,.1);  color: var(--green); }
+    .tag-failed  { background: rgba(248,113,113,.1); color: var(--red); }
+    .tag-sim     { background: rgba(245,158,11,.1);  color: var(--accent); }
+
+    .tx-link { color: var(--accent); text-decoration: none; font-family: monospace; font-size: 11px; }
+    .tx-link:hover { text-decoration: underline; }
+
+    .profit-pos { color: var(--green); font-weight: 600; }
+    .profit-neg { color: var(--red); font-weight: 600; }
+
+    /* ── Panel headers ── */
+    .panel-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 14px; border-bottom: 1px solid var(--border); }
+    .panel-title { font-size: 13px; font-weight: 600; }
+    .panel-meta { font-size: 11px; color: var(--muted); }
+
+    /* ── Gas oracle rows ── */
+    .gas-row { display: flex; align-items: center; justify-content: space-between; padding: 13px 20px; border-bottom: 1px solid var(--border); }
+    .gas-row:last-child { border-bottom: 0; }
+    .gas-key { font-size: 12px; color: var(--muted); }
+    .gas-val { font-family: 'Space Grotesk', sans-serif; font-size: 14px; font-weight: 600; }
+
+    /* ── Opportunity grid ── */
+    .opp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border-radius: 0 0 20px 20px; overflow: hidden; }
+    .opp-cell { background: var(--surface); padding: 18px 20px; }
+    .opp-label { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); margin-bottom: 8px; }
+    .opp-val { font-family: 'Space Grotesk', sans-serif; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+    /* ── Bot status card ── */
+    .bot-status-card { display: flex; align-items: center; gap: 16px; padding: 20px; }
+    .bot-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .bot-dot.running { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .bot-dot.stopped { background: var(--red); box-shadow: 0 0 8px var(--red); }
+    .bot-label { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; }
+    .bot-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+    /* ── Chart ── */
+    .chart-wrap { padding: 20px; height: 200px; position: relative; }
+
+    /* ── Settings form ── */
+    .settings-field { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+    .settings-field:last-child { border-bottom: 0; }
+    .settings-label { font-size: 13px; font-weight: 500; }
+    .settings-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .settings-input { font-family: 'Space Grotesk', monospace; font-size: 13px; font-weight: 600; background: var(--bg); border: 1px solid var(--border2); border-radius: 10px; color: var(--text); padding: 8px 12px; outline: none; width: 140px; text-align: right; transition: border-color .15s; }
+    .settings-input:focus { border-color: var(--accent); }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ── Sidebar ─────────────────────────────────── -->
+  <div class="sidebar">
+    <div class="logo-area">
+      <div class="logo-icon">
+        <i class="fa-solid fa-bolt" style="color:#0a0a0a;font-size:15px;"></i>
+      </div>
+      <span class="logo-name">Auris</span>
+    </div>
+
+    <div class="nav-area">
+      <div class="nav-section">Monitor</div>
+      <a class="nav-link active" onclick="showSection('overview', this)">
+        <i class="fa-solid fa-chart-line nav-icon"></i><span>Overview</span>
+      </a>
+      <a class="nav-link" onclick="showSection('trades', this)">
+        <i class="fa-solid fa-list nav-icon"></i><span>Trades</span>
+      </a>
+      <a class="nav-link" onclick="showSection('opportunities', this)">
+        <i class="fa-solid fa-crosshairs nav-icon"></i><span>Opportunities</span>
+      </a>
+
+      <div class="nav-section" style="margin-top:8px;">Engine</div>
+      <a class="nav-link" onclick="showSection('gas', this)">
+        <i class="fa-solid fa-gauge-high nav-icon"></i><span>Gas Oracle</span>
+      </a>
+      <a class="nav-link" onclick="showSection('pools', this)">
+        <i class="fa-solid fa-water nav-icon"></i><span>Pool Monitor</span>
+      </a>
+
+      <div class="nav-section" style="margin-top:8px;">System</div>
+      <a class="nav-link" onclick="showSection('settings', this)">
+        <i class="fa-solid fa-sliders nav-icon"></i><span>Settings</span>
+      </a>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="user-row">
+        <div class="user-avatar">
+          <i class="fa-solid fa-user" style="font-size:11px;color:var(--muted);"></i>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div class="user-name" id="sidebar-user">operator</div>
+          <div class="user-status">
+            <div class="status-dot pulse"></div>
+            <span style="font-size:10px;color:var(--green);">Authenticated</span>
+          </div>
+        </div>
+        <button class="btn btn-logout" onclick="doLogout()" title="Sign out">
+          <i class="fa-solid fa-arrow-right-from-bracket" style="font-size:11px;"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Main ─────────────────────────────────────── -->
+  <div class="main">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="page-title" id="page-title">Overview</span>
+        <div class="network-badge">
+          <div class="status-dot pulse" style="width:7px;height:7px;background:var(--green);border-radius:50%;"></div>
+          Ethereum Mainnet
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="block-badge">BLOCK <span id="block-num">21,847,392</span></div>
+        <button class="btn btn-stop" id="bot-btn" onclick="toggleBot()">
+          <i class="fa-solid fa-stop" style="font-size:10px;" id="bot-btn-icon"></i>
+          <span id="bot-btn-label">Stop Bot</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+      <div class="inner">
+
+        <!-- ── OVERVIEW ──────────────────────────── -->
+        <div class="section active" id="section-overview">
+
+          <!-- KPI row -->
+          <div class="kpi-grid">
+            <div class="kpi">
+              <div class="kpi-label">Wallet Balance</div>
+              <div class="kpi-val tabnum" style="color:var(--accent);" id="kpi-balance">14.2847 ETH</div>
+              <div class="kpi-sub" id="kpi-balance-usd">$48,812.40</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Net P&L (All Time)</div>
+              <div class="kpi-val tabnum profit-pos" id="kpi-pnl">+$24,640</div>
+              <div class="kpi-sub" id="kpi-pnl-today">Today: +$312.48</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Gas Spent</div>
+              <div class="kpi-val tabnum" id="kpi-gas">$20,580</div>
+              <div class="kpi-sub" id="kpi-gas-failed">Failed tx: $8,400</div>
+              <div class="prog-wrap"><div class="prog-bar" style="width:41%;background:var(--red);"></div></div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Success Rate</div>
+              <div class="kpi-val tabnum" id="kpi-rate">71.5%</div>
+              <div class="kpi-sub" id="kpi-rate-sub">892 ok / 355 failed</div>
+              <div class="prog-wrap"><div class="prog-bar" style="width:71.5%;background:var(--green);"></div></div>
+            </div>
+          </div>
+
+          <!-- Bot status + P&L chart -->
+          <div class="two-col">
+            <div class="card">
+              <div class="panel-head">
+                <div class="panel-title">Bot Status</div>
+                <div class="panel-meta" id="uptime-label">Uptime 3h 42m</div>
+              </div>
+              <div class="bot-status-card">
+                <div class="bot-dot running pulse" id="bot-dot"></div>
+                <div>
+                  <div class="bot-label" id="bot-label">Running</div>
+                  <div class="bot-sub" id="bot-sub">Monitoring 4 pool pairs · paper trade mode</div>
+                </div>
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border-radius:0 0 20px 20px;overflow:hidden;">
+                <div style="background:var(--surface);padding:14px 20px;">
+                  <div class="opp-label">Pools Watched</div>
+                  <div class="opp-val" id="stat-pools">4</div>
+                </div>
+                <div style="background:var(--surface);padding:14px 20px;">
+                  <div class="opp-label">Current Block</div>
+                  <div class="opp-val" id="stat-block">21,847,392</div>
+                </div>
+                <div style="background:var(--surface);padding:14px 20px;">
+                  <div class="opp-label">Scanned (24h)</div>
+                  <div class="opp-val" id="stat-scanned">2,401,847</div>
+                </div>
+                <div style="background:var(--surface);padding:14px 20px;">
+                  <div class="opp-label">Executed (24h)</div>
+                  <div class="opp-val" id="stat-executed">1,247</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="panel-head">
+                <div class="panel-title">P&L (Last 7 Days)</div>
+              </div>
+              <div class="chart-wrap">
+                <canvas id="pnl-chart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent trades preview -->
+          <div class="card">
+            <div class="panel-head">
+              <div class="panel-title">Recent Trades</div>
+              <a class="panel-meta" style="color:var(--accent);cursor:pointer;text-decoration:none;" onclick="showSection('trades', null)">View all →</a>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Tx Hash</th>
+                    <th>Route</th>
+                    <th>Gas</th>
+                    <th>Profit</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="overview-tx-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ── TRADES ─────────────────────────────── -->
+        <div class="section" id="section-trades">
+          <div class="card">
+            <div class="panel-head">
+              <div class="panel-title">All Trades</div>
+              <div class="panel-meta" id="trades-meta">Showing last 50</div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Block</th>
+                    <th>Tx Hash</th>
+                    <th>Route</th>
+                    <th>Input</th>
+                    <th>Gas Cost</th>
+                    <th>Net Profit</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="trades-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── OPPORTUNITIES ──────────────────────── -->
+        <div class="section" id="section-opportunities">
+
+          <div class="kpi-grid">
+            <div class="kpi">
+              <div class="kpi-label">Total Scanned</div>
+              <div class="kpi-val tabnum">2,401,847</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Executed</div>
+              <div class="kpi-val tabnum">1,247</div>
+              <div class="kpi-sub" style="color:var(--accent);">0.05% of scanned</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Profitable</div>
+              <div class="kpi-val tabnum" style="color:var(--green);">892</div>
+              <div class="kpi-sub">71.5% success rate</div>
+              <div class="prog-wrap"><div class="prog-bar" style="width:71.5%;background:var(--green);"></div></div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Frontrun Est.</div>
+              <div class="kpi-val tabnum" style="color:var(--red);">~187</div>
+              <div class="kpi-sub">~15% of attempts</div>
+              <div class="prog-wrap"><div class="prog-bar" style="width:15%;background:var(--red);"></div></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="panel-head">
+              <div class="panel-title">Opportunity Log</div>
+              <div class="panel-meta">Last 100 detected</div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Pool A</th>
+                    <th>Pool B</th>
+                    <th>Spread</th>
+                    <th>Est. Profit</th>
+                    <th>Gas Est.</th>
+                    <th>Decision</th>
+                  </tr>
+                </thead>
+                <tbody id="opp-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── GAS ORACLE ─────────────────────────── -->
+        <div class="section" id="section-gas">
+          <div class="two-col">
+            <div class="card">
+              <div class="panel-head">
+                <div class="panel-title">Live Gas Estimates</div>
+                <div class="panel-meta" style="display:flex;align-items:center;gap:6px;">
+                  <div class="status-dot pulse" style="width:6px;height:6px;background:var(--green);border-radius:50%;"></div>
+                  Live
+                </div>
+              </div>
+              <div class="gas-row">
+                <div class="gas-key">Base Fee</div>
+                <div class="gas-val" id="gas-base">12.4 gwei</div>
+              </div>
+              <div class="gas-row">
+                <div class="gas-key">Priority Fee (p90)</div>
+                <div class="gas-val" id="gas-priority">1.5 gwei</div>
+              </div>
+              <div class="gas-row">
+                <div class="gas-key">Avg Gas / Arb Tx</div>
+                <div class="gas-val">195,000 units</div>
+              </div>
+              <div class="gas-row">
+                <div class="gas-key">Cost per Tx (USD)</div>
+                <div class="gas-val" id="gas-cost-usd">$8.22</div>
+              </div>
+              <div class="gas-row">
+                <div class="gas-key">Min Profit Gate</div>
+                <div class="gas-val" style="color:var(--accent);" id="gas-gate">$5.00</div>
+              </div>
+              <div class="gas-row" style="border-bottom:0;">
+                <div class="gas-key">Max Gas Gwei Cap</div>
+                <div class="gas-val" style="color:var(--muted);">50 gwei</div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="panel-head">
+                <div class="panel-title">Gas History (Last 50 Blocks)</div>
+              </div>
+              <div class="chart-wrap" style="height:240px;">
+                <canvas id="gas-chart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="panel-head">
+              <div class="panel-title">Gas Sample Log</div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Block</th>
+                    <th>Base Fee (gwei)</th>
+                    <th>Priority Fee (gwei)</th>
+                    <th>Time</th>
+                  </tr>
+                </thead>
+                <tbody id="gas-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── POOL MONITOR ───────────────────────── -->
+        <div class="section" id="section-pools">
+          <div class="card">
+            <div class="panel-head">
+              <div class="panel-title">Monitored Pools</div>
+              <div class="panel-meta">Sync events · live reserves</div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Pool Address</th>
+                    <th>Pair</th>
+                    <th>Reserve 0</th>
+                    <th>Reserve 1</th>
+                    <th>Last Block</th>
+                    <th>Last Update</th>
+                  </tr>
+                </thead>
+                <tbody id="pools-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── SETTINGS ───────────────────────────── -->
+        <div class="section" id="section-settings">
+          <div class="card">
+            <div class="panel-head">
+              <div class="panel-title">Bot Configuration</div>
+              <div class="panel-meta">Read from config.toml · restart to apply</div>
+            </div>
+
+            <div class="settings-field">
+              <div>
+                <div class="settings-label">Min Profit Gate (USD)</div>
+                <div class="settings-sub">Minimum net profit required to execute a trade</div>
+              </div>
+              <input class="settings-input" type="number" value="5.00" step="0.5" id="cfg-min-profit">
+            </div>
+            <div class="settings-field">
+              <div>
+                <div class="settings-label">Max Gas (gwei)</div>
+                <div class="settings-sub">Auto-stop bot if base fee exceeds this</div>
+              </div>
+              <input class="settings-input" type="number" value="50" id="cfg-max-gas">
+            </div>
+            <div class="settings-field">
+              <div>
+                <div class="settings-label">Paper Trade Mode</div>
+                <div class="settings-sub">Simulate only — no live execution</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:12px;font-weight:600;color:var(--accent);" id="paper-label">ON</span>
+                <div id="paper-toggle" onclick="togglePaper()" style="width:40px;height:22px;background:#059669;border-radius:11px;position:relative;cursor:pointer;transition:background .2s;">
+                  <div id="paper-thumb" style="width:16px;height:16px;background:#fff;border-radius:50%;position:absolute;top:3px;left:21px;transition:left .2s;"></div>
+                </div>
+              </div>
+            </div>
+            <div class="settings-field" style="border-bottom:0;">
+              <div>
+                <div class="settings-label">Node WebSocket</div>
+                <div class="settings-sub">Erigon node connection</div>
+              </div>
+              <div style="font-family:monospace;font-size:11px;color:var(--muted);">ws://[private-ip]:8545</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="panel-head">
+              <div class="panel-title">Danger Zone</div>
+            </div>
+            <div class="settings-field" style="border-bottom:0;">
+              <div>
+                <div class="settings-label">Force Stop Bot</div>
+                <div class="settings-sub">Immediately halt all activity including in-flight transactions</div>
+              </div>
+              <button class="btn btn-stop" onclick="emergencyStop()">
+                <i class="fa-solid fa-triangle-exclamation" style="font-size:10px;"></i>
+                Emergency Stop
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  'use strict';
+
+  // ── Auth guard ─────────────────────────────────────────
+  // In production: validate JWT from API on page load.
+  // Demo: check sessionStorage token set by login.html.
+  // Uncomment to enforce auth guard:
+  // if (!sessionStorage.getItem('auris_jwt')) window.location.href = 'login.html';
+
+  function doLogout() {
+    sessionStorage.removeItem('auris_jwt');
+    window.location.href = 'login.html';
+  }
+
+  // ── Navigation ─────────────────────────────────────────
+  const sections = ['overview', 'trades', 'opportunities', 'gas', 'pools', 'settings'];
+  const titles   = { overview: 'Overview', trades: 'Trades', opportunities: 'Opportunities', gas: 'Gas Oracle', pools: 'Pool Monitor', settings: 'Settings' };
+
+  function showSection(id, linkEl) {
+    sections.forEach(s => {
+      document.getElementById('section-' + s).classList.toggle('active', s === id);
+    });
+    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+    if (linkEl) linkEl.classList.add('active');
+    document.getElementById('page-title').textContent = titles[id] || id;
+  }
+
+  // ── Bot state ──────────────────────────────────────────
+  let running = true;
+  let block   = 21847392;
+
+  function toggleBot() {
+    running = !running;
+    applyBotState();
+  }
+
+  function emergencyStop() {
+    running = false;
+    applyBotState();
+    showToast('Bot force-stopped');
+  }
+
+  function applyBotState() {
+    const dot   = document.getElementById('bot-dot');
+    const label = document.getElementById('bot-label');
+    const sub   = document.getElementById('bot-sub');
+    const btn   = document.getElementById('bot-btn');
+    const icon  = document.getElementById('bot-btn-icon');
+    const lbl   = document.getElementById('bot-btn-label');
+
+    if (running) {
+      dot.className   = 'bot-dot running pulse';
+      label.textContent = 'Running';
+      sub.textContent   = 'Monitoring 4 pool pairs · paper trade mode';
+      btn.className   = 'btn btn-stop';
+      icon.className  = 'fa-solid fa-stop';
+      lbl.textContent = 'Stop Bot';
+    } else {
+      dot.className   = 'bot-dot stopped';
+      label.textContent = 'Stopped';
+      sub.textContent   = 'Bot halted · no trades being processed';
+      btn.className   = 'btn btn-start';
+      icon.className  = 'fa-solid fa-play';
+      lbl.textContent = 'Start Bot';
+    }
+  }
+
+  // ── Paper trade toggle ─────────────────────────────────
+  let paperOn = true;
+  function togglePaper() {
+    paperOn = !paperOn;
+    const track = document.getElementById('paper-toggle');
+    const thumb = document.getElementById('paper-thumb');
+    const lbl   = document.getElementById('paper-label');
+    if (paperOn) {
+      track.style.background = '#059669';
+      thumb.style.left = '21px';
+      lbl.textContent = 'ON';
+      lbl.style.color = 'var(--green)';
+    } else {
+      track.style.background = '#3f3f46';
+      thumb.style.left = '3px';
+      lbl.textContent = 'OFF';
+      lbl.style.color = 'var(--red)';
+    }
+    showToast('Paper trade mode ' + (paperOn ? 'enabled' : 'disabled'));
+  }
+
+  // ── Mock data ──────────────────────────────────────────
+  const routes = [
+    'WETH → USDC → WETH',
+    'WETH → DAI  → USDC',
+    'USDC → WETH → DAI',
+    'WETH → USDT → WETH',
+    'DAI  → WETH → USDC',
+  ];
+
+  const pools = [
+    { addr: '0xB4e16d0...8C9Dc', pair: 'USDC/WETH', r0: '12,840,221.48', r1: '3,752.18' },
+    { addr: '0xA478c29...3eB11', pair: 'DAI/WETH',  r0: '9,120,440.00', r1: '2,664.80' },
+    { addr: '0x0d4a11d...f1852', pair: 'USDT/WETH', r0: '8,201,330.72', r1: '2,396.04' },
+    { addr: '0xAE461cA...8D5',   pair: 'DAI/USDC',  r0: '6,540,000.00', r1: '6,537,820.10' },
+  ];
+
+  function randHash() {
+    const h = '0123456789abcdef';
+    let s = '0x';
+    for (let i = 0; i < 12; i++) s += h[Math.floor(Math.random() * 16)];
+    return s + '...';
+  }
+
+  function timeNow() { return new Date().toLocaleTimeString('en-US', { hour12: false }); }
+
+  const trades = [];
+
+  function addTrade() {
+    if (!running) return;
+    const statuses = ['success', 'success', 'success', 'failed', 'success'];
+    const status   = statuses[Math.floor(Math.random() * statuses.length)];
+    const gas      = (Math.random() * 12 + 3).toFixed(2);
+    const profit   = status === 'failed'
+      ? -parseFloat(gas)
+      : parseFloat((Math.random() * 80 + 5).toFixed(2));
+    trades.unshift({
+      time:   timeNow(),
+      block:  block,
+      hash:   randHash(),
+      route:  routes[Math.floor(Math.random() * routes.length)],
+      input:  '1.0000 WETH',
+      gas:    '$' + gas,
+      profit,
+      status,
+    });
+    if (trades.length > 100) trades.pop();
+    renderTrades();
+  }
+
+  function renderTrades() {
+    const rows = trades.slice(0, 10).map(t => `
+      <tr>
+        <td>${t.time}</td>
+        <td><a class="tx-link" href="#" onclick="return false">${t.hash}</a></td>
+        <td style="font-family:monospace;font-size:11px;">${t.route}</td>
+        <td>${t.gas}</td>
+        <td class="${t.profit >= 0 ? 'profit-pos' : 'profit-neg'}">${t.profit >= 0 ? '+' : ''}$${Math.abs(t.profit).toFixed(2)}</td>
+        <td><span class="tag ${t.status === 'success' ? 'tag-success' : 'tag-failed'}">${t.status}</span></td>
+      </tr>`).join('');
+    document.getElementById('overview-tx-body').innerHTML = rows;
+
+    const allRows = trades.map(t => `
+      <tr>
+        <td>${t.time}</td>
+        <td style="font-family:monospace;">${t.block.toLocaleString()}</td>
+        <td><a class="tx-link" href="#" onclick="return false">${t.hash}</a></td>
+        <td style="font-family:monospace;font-size:11px;">${t.route}</td>
+        <td style="font-family:monospace;">${t.input}</td>
+        <td>${t.gas}</td>
+        <td class="${t.profit >= 0 ? 'profit-pos' : 'profit-neg'}">${t.profit >= 0 ? '+' : ''}$${Math.abs(t.profit).toFixed(2)}</td>
+        <td><span class="tag ${t.status === 'success' ? 'tag-success' : 'tag-failed'}">${t.status}</span></td>
+      </tr>`).join('');
+    document.getElementById('trades-body').innerHTML = allRows;
+    document.getElementById('trades-meta').textContent = `Showing ${trades.length} trades`;
+  }
+
+  const opps = [];
+  function addOpp() {
+    if (!running) return;
+    const spread = (Math.random() * 50 + 1).toFixed(1);
+    const est    = (Math.random() * 60 + 2).toFixed(2);
+    const gas    = (Math.random() * 12 + 3).toFixed(2);
+    const go     = parseFloat(est) - parseFloat(gas) > 5;
+    opps.unshift({
+      time:   timeNow(),
+      poolA:  '0xB4e16d...8C9Dc',
+      poolB:  '0xA478c2...3eB11',
+      spread: spread + ' bps',
+      est:    '$' + est,
+      gas:    '$' + gas,
+      go,
+    });
+    if (opps.length > 100) opps.pop();
+    renderOpps();
+  }
+
+  function renderOpps() {
+    document.getElementById('opp-body').innerHTML = opps.map(o => `
+      <tr>
+        <td>${o.time}</td>
+        <td><a class="tx-link" href="#" onclick="return false">${o.poolA}</a></td>
+        <td><a class="tx-link" href="#" onclick="return false">${o.poolB}</a></td>
+        <td style="font-family:monospace;">${o.spread}</td>
+        <td class="profit-pos">${o.est}</td>
+        <td>${o.gas}</td>
+        <td><span class="tag ${o.go ? 'tag-success' : 'tag-failed'}">${o.go ? 'go' : 'no-go'}</span></td>
+      </tr>`).join('');
+  }
+
+  const gasSamples = [];
+  function addGasSample() {
+    const base     = (Math.random() * 8 + 8).toFixed(1);
+    const priority = (Math.random() * 1 + 1).toFixed(1);
+    gasSamples.unshift({ block, base, priority, time: timeNow() });
+    if (gasSamples.length > 50) gasSamples.pop();
+    document.getElementById('gas-base').textContent     = base + ' gwei';
+    document.getElementById('gas-priority').textContent = priority + ' gwei';
+    document.getElementById('gas-cost-usd').textContent = '$' + (parseFloat(base) * 195000 * 3420 / 1e9).toFixed(2);
+    document.getElementById('gas-gate').textContent     = '$' + document.getElementById('cfg-min-profit').value;
+    renderGas();
+    updateGasChart();
+  }
+
+  function renderGas() {
+    document.getElementById('gas-body').innerHTML = gasSamples.slice(0, 20).map(g => `
+      <tr>
+        <td style="font-family:monospace;">${g.block.toLocaleString()}</td>
+        <td style="font-family:monospace;">${g.base}</td>
+        <td style="font-family:monospace;">${g.priority}</td>
+        <td>${g.time}</td>
+      </tr>`).join('');
+  }
+
+  function renderPools() {
+    document.getElementById('pools-body').innerHTML = pools.map(p => `
+      <tr>
+        <td><a class="tx-link" href="#" onclick="return false">${p.addr}</a></td>
+        <td style="font-weight:600;">${p.pair}</td>
+        <td style="font-family:monospace;">${p.r0}</td>
+        <td style="font-family:monospace;">${p.r1}</td>
+        <td style="font-family:monospace;">${block.toLocaleString()}</td>
+        <td>${timeNow()}</td>
+      </tr>`).join('');
+  }
+
+  // ── Tick ───────────────────────────────────────────────
+  function tick() {
+    if (!running) return;
+    block += 1;
+    document.getElementById('block-num').textContent  = block.toLocaleString();
+    document.getElementById('stat-block').textContent = block.toLocaleString();
+  }
+
+  // ── Charts ─────────────────────────────────────────────
+  const chartOpts = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { display: false },
+      y: { grid: { color: '#1f1f1f' }, ticks: { color: '#52525b', font: { size: 10 } } },
+    },
+  };
+
+  const pnlLabels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const pnlData   = [38, 72, 45, 91, 58, 120, 84];
+  const pnlChart  = new Chart(document.getElementById('pnl-chart'), {
+    type: 'bar',
+    data: {
+      labels: pnlLabels,
+      datasets: [{
+        data: pnlData,
+        backgroundColor: pnlData.map(v => v >= 0 ? 'rgba(74,222,128,.5)' : 'rgba(248,113,113,.5)'),
+        borderRadius: 6,
+      }],
+    },
+    options: { ...chartOpts },
+  });
+
+  const gasChartData = { labels: [], datasets: [{ data: [], borderColor: '#F59E0B', backgroundColor: 'rgba(245,158,11,.08)', fill: true, tension: 0.3, pointRadius: 0 }] };
+  const gasChart = new Chart(document.getElementById('gas-chart'), {
+    type: 'line',
+    data: gasChartData,
+    options: { ...chartOpts },
+  });
+
+  function updateGasChart() {
+    gasChartData.labels   = gasSamples.map(g => g.block.toString()).reverse();
+    gasChartData.datasets[0].data = gasSamples.map(g => parseFloat(g.base)).reverse();
+    gasChart.update('none');
+  }
+
+  // ── Toast ──────────────────────────────────────────────
+  function showToast(msg) {
+    const t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#1a1a1a;border:1px solid #2a2a2a;padding:10px 18px;border-radius:14px;display:flex;align-items:center;gap:10px;font-size:13px;z-index:9999;';
+    t.innerHTML = '<i class="fa-solid fa-check-circle" style="color:#4ade80;"></i><span>' + msg + '</span>';
+    document.body.appendChild(t);
+    setTimeout(() => { t.style.transition = 'opacity .3s'; t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 2400);
+  }
+
+  // ── Init ───────────────────────────────────────────────
+  for (let i = 0; i < 20; i++) { addTrade(); addOpp(); addGasSample(); block++; }
+  renderPools();
+
+  setInterval(tick,        12000);
+  setInterval(addTrade,    4000);
+  setInterval(addOpp,      2000);
+  setInterval(addGasSample, 12000);
+</script>
+</body>
+</html>
