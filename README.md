@@ -1,31 +1,30 @@
-﻿# AURIS
+# Auris
 
-AURIS is a Rust workspace that implements the initial scaffolding for a DeFi arbitrage bot stack: config loading, SQLite persistence/migrations, an API server (REST + WebSocket), and core math and subscription primitives.
+Autonomous arbitrage engine for Ethereum. Monitors Uniswap V2 liquidity pools in real time, detects mispriced assets, and closes spreads with Aave V3 flash loans — landing transactions privately through Flashbots. Single Rust binary, self-hosted, no external dependencies.
 
-This repository enforces a strict quality gate: no warnings, no unused code, formatting checked, tests required.
+## Architecture
 
-## Workspace Layout
-
-- `auris-types`: shared domain types
-- `auris-config`: `config.toml` loader + `AURIS_*` env overrides
-- `auris-db`: SQLite migrations + query helpers
-- `auris-core`: AMM math + websocket subscription scaffolding (new heads, Uniswap V2 Sync logs)
-- `auris-gas`: gas oracle (ring buffer + p90 priority fee)
-- `auris-sim`: profit decision engine (`evaluate`)
-- `auris-exec`: execution helpers (key loading)
-- `auris-api`: REST + WebSocket API server, JWT auth, static web UI serving
-- `auris-bin`: binary wiring everything together
-- `web-ui`: minimal UI served by the API
+| Crate | Role |
+|-------|------|
+| `auris-types` | Shared domain types |
+| `auris-config` | Config loading and `AURIS_*` env overrides |
+| `auris-db` | SQLite migrations and query helpers |
+| `auris-core` | WebSocket pool subscriptions, reserve state, AMM math |
+| `auris-gas` | Gas oracle — 100-block ring buffer, p90 priority fee |
+| `auris-sim` | Profit evaluation and backtesting |
+| `auris-exec` | Transaction signing, Flashbots bundle submission |
+| `auris-api` | REST + WebSocket API, JWT auth, web UI |
+| `auris-bin` | Entry point |
 
 ## Quickstart
 
-### 1) Install Rust
+### 1. Install Rust
 
-Install the latest stable Rust toolchain (includes `cargo` and `rustfmt`).
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
 
-### 2) Create a config file
-
-Create a `config.toml` (example below). Do not commit secrets.
+### 2. Configure
 
 ```toml
 [node]
@@ -57,74 +56,60 @@ contract_address = "0x0000000000000000000000000000000000000000"
 aave_pool_provider = "0x2f39d218133AFaB8F2B819B1066c7E434Ad94E9e"
 ```
 
-### 3) Run
+### 3. Run
 
 ```bash
 cargo run -p auris-bin -- --config ./config.toml
 ```
 
-This will:
-- open/create the SQLite database
-- run migrations
-- start the HTTP server on `server.bind_addr`
-- serve the UI from `server.web_ui_path`
-
-## API Overview
+## API
 
 ### Auth
 
-- `POST /api/auth/register`
-  - one-time bootstrap: once a user exists, registration is disabled
-- `POST /api/auth/login`
-  - returns JWT
+```
+POST /api/auth/register   — first run only; disabled once a user exists
+POST /api/auth/login      — returns JWT
+```
 
-Send JWT in:
-
-`Authorization: Bearer <token>`
+All subsequent requests require `Authorization: Bearer <token>`.
 
 ### WebSocket
 
-- `GET /ws`
-  - first message must be `{"type":"auth","token":"<jwt>"}` within 5 seconds
-  - server replies with `{"type":"auth_ok"}` or `{"type":"auth_fail","reason":"invalid"}`
+```
+GET /ws
+```
+
+First message must be `{"type":"auth","token":"<jwt>"}` within 5 seconds.
 
 ### Bot Control
 
-- `POST /api/bot/start`
-- `POST /api/bot/stop`
-- `GET /api/bot/status`
+```
+POST /api/bot/start
+POST /api/bot/stop
+GET  /api/bot/status
+```
 
-### Stats / Trades / Wallet
+### Data
 
-- `GET /api/stats/pnl`
-- `GET /api/stats/gas`
-- `GET /api/stats/opportunities`
-- `GET /api/trades?limit=50&offset=0`
-- `GET /api/wallet/balance`
-  - uses `node.ws_url` for `eth_getBalance`
-  - uses Chainlink ETH/USD feed on mainnet to return USD estimates
+```
+GET /api/stats/pnl
+GET /api/stats/gas
+GET /api/stats/opportunities
+GET /api/trades?limit=50&offset=0
+GET /api/wallet/balance
+```
 
 ## Environment Overrides
 
-Any config key can be overridden via environment variables:
+Any config key can be overridden at runtime:
 
-- `AURIS_NODE_WS_URL`
-- `AURIS_SERVER_BIND_ADDR`
-- `AURIS_DATABASE_PATH`
-- `AURIS_AUTH_JWT_SECRET`
-- `AURIS_KEYS_SIGNER_KEY_PATH`
-- `AURIS_KEYS_CONTRACT_ADDRESS`
-
-Pattern:
-
-`AURIS_<SECTION>_<KEY>` (uppercased).
-
-## Quality Gate
-
-These commands must pass cleanly:
-
-```bash
-cargo clippy --all-targets --all-features -- -D warnings
-cargo fmt --check
-cargo test --workspace
 ```
+AURIS_NODE_WS_URL
+AURIS_SERVER_BIND_ADDR
+AURIS_DATABASE_PATH
+AURIS_AUTH_JWT_SECRET
+AURIS_KEYS_SIGNER_KEY_PATH
+AURIS_KEYS_CONTRACT_ADDRESS
+```
+
+Pattern: `AURIS_<SECTION>_<KEY>`
