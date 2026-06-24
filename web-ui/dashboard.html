@@ -38,7 +38,6 @@
     .sidebar { width: 240px; border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; background: var(--bg); }
 
     .logo-area { height: 64px; padding: 0 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
-    .logo-icon { width: 34px; height: 34px; background: var(--accent); border-radius: 17px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .logo-name { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
 
     .nav-area { padding: 10px; flex: 1; overflow-y: auto; }
@@ -172,9 +171,11 @@
   <!-- ── Sidebar ─────────────────────────────────── -->
   <div class="sidebar">
     <div class="logo-area">
-      <div class="logo-icon">
-        <i class="fa-solid fa-bolt" style="color:#0a0a0a;font-size:15px;"></i>
-      </div>
+      <svg width="34" height="34" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+        <polygon points="24,2 46,13 46,35 24,46 2,35 2,13" fill="#F59E0B"/>
+        <polygon points="24,10 38,18 38,30 24,38 10,30 10,18" fill="#0a0a0a"/>
+        <polygon points="24,16 31,24 24,32 17,24" fill="#F59E0B"/>
+      </svg>
       <span class="logo-name">Auris</span>
     </div>
 
